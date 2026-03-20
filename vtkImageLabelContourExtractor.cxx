@@ -3,7 +3,9 @@
 #include <vtkCleanPolyData.h>
 #include <vtkCompositeDataSet.h>
 #include <vtkContourFilter.h>
+#include <vtkContourTriangulator.h>
 #include <vtkDataArray.h>
+#include <vtkDataObject.h>
 #include <vtkDoubleArray.h>
 #include <vtkFieldData.h>
 #include <vtkFloatArray.h>
@@ -35,23 +37,21 @@ vtkStandardNewMacro(vtkImageLabelContourExtractor);
 // ============================================================================
 //  Construction / destruction
 // ============================================================================
-
 vtkImageLabelContourExtractor::vtkImageLabelContourExtractor()
   : BackgroundValue(0.0)
   , UseBackgroundValue(true)
   , SmoothContours(false)
   , SmoothStandardDeviation(0.5)
+  , GenerateFilledPolygons(false)
 {
   this->SetNumberOfInputPorts(1);
-  this->SetNumberOfOutputPorts(1);
+  this->SetNumberOfOutputPorts(2);
 }
-
 vtkImageLabelContourExtractor::~vtkImageLabelContourExtractor() = default;
 
 // ============================================================================
 //  PrintSelf
 // ============================================================================
-
 void vtkImageLabelContourExtractor::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -59,12 +59,12 @@ void vtkImageLabelContourExtractor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UseBackgroundValue: " << (this->UseBackgroundValue ? "true" : "false") << "\n";
   os << indent << "SmoothContours: " << (this->SmoothContours ? "true" : "false") << "\n";
   os << indent << "SmoothStandardDeviation: " << this->SmoothStandardDeviation << "\n";
+  os << indent << "GenerateFilledPolygons: " << (this->GenerateFilledPolygons ? "true" : "false") << "\n";
 }
 
 // ============================================================================
 //  Parameter setters
 // ============================================================================
-
 void vtkImageLabelContourExtractor::SetSmoothStandardDeviation(double sigma)
 {
   double clamped = std::max(0.01, std::min(10.0, sigma));
@@ -78,7 +78,6 @@ void vtkImageLabelContourExtractor::SetSmoothStandardDeviation(double sigma)
 // ============================================================================
 //  Port information
 // ============================================================================
-
 int vtkImageLabelContourExtractor::FillInputPortInformation(int port, vtkInformation* info)
 {
   if (port == 0)
@@ -89,10 +88,19 @@ int vtkImageLabelContourExtractor::FillInputPortInformation(int port, vtkInforma
   return 0;
 }
 
+int vtkImageLabelContourExtractor::FillOutputPortInformation(int port, vtkInformation* info)
+{
+  if (port == 0 || port == 1)
+  {
+    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkMultiBlockDataSet");
+    return 1;
+  }
+  return 0;
+}
+
 // ============================================================================
 //  Phase 1 – Parallel label collection
 // ============================================================================
-
 std::vector<double> vtkImageLabelContourExtractor::CollectUniqueLabelsSMP(vtkImageData* input)
 {
   vtkDataArray* scalars = input->GetPointData()->GetScalars();
@@ -128,7 +136,6 @@ std::vector<double> vtkImageLabelContourExtractor::CollectUniqueLabelsSMP(vtkIma
 // ============================================================================
 //  Phase 2 – Single-pass O(N) parallel binary-mask generation
 // ============================================================================
-
 // Encode a double label value to a reproducible integer key.
 // We use bit-cast to int64 so that the same double always maps to the same key.
 static inline int64_t EncodeLabel(double v)
@@ -201,7 +208,6 @@ vtkImageLabelContourExtractor::BuildAllBinaryMasksSMP(
 // ============================================================================
 //  Phase 3 – Per-label contour extraction
 // ============================================================================
-
 vtkSmartPointer<vtkPolyData> vtkImageLabelContourExtractor::ExtractContourFromMask(
   vtkImageData* binaryMask)
 {
@@ -251,18 +257,38 @@ vtkSmartPointer<vtkPolyData> vtkImageLabelContourExtractor::ExtractContourFromMa
 }
 
 // ============================================================================
-//  RequestData – orchestrates all 4 phases
+//  Phase 3b – Per-label filled polygon generation
 // ============================================================================
+vtkSmartPointer<vtkPolyData> vtkImageLabelContourExtractor::GenerateFilledPolygonFromContour(
+  vtkPolyData* contour)
+{
+  if (!contour || contour->GetNumberOfCells() == 0)
+  {
+    auto empty = vtkSmartPointer<vtkPolyData>::New();
+    return empty;
+  }
 
+  vtkNew<vtkContourTriangulator> triangulator;
+  triangulator->SetInputData(contour);
+  triangulator->Update();
+
+  auto result = vtkSmartPointer<vtkPolyData>::New();
+  result->DeepCopy(triangulator->GetOutput());
+  return result;
+}
+
+// ============================================================================
+//  RequestData – orchestrates all phases
+// ============================================================================
 int vtkImageLabelContourExtractor::RequestData(
   vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
   // ── Obtain input / output ────────────────────────────────────────────────
-  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-  vtkImageData* input =
-    vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
+vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+vtkImageData* input =
+vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!input)
   {
@@ -278,13 +304,25 @@ int vtkImageLabelContourExtractor::RequestData(
       << "). This filter is optimized for 2D images.");
   }
 
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  vtkMultiBlockDataSet* output =
-    vtkMultiBlockDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  // Output port 0: contours (always)
+vtkInformation* outInfo0 = outputVector->GetInformationObject(0);
+vtkMultiBlockDataSet* contourOutput =
+vtkMultiBlockDataSet::SafeDownCast(outInfo0->Get(vtkDataObject::DATA_OBJECT()));
 
-  if (!output)
+  if (!contourOutput)
   {
-    vtkErrorMacro("Output is not a vtkMultiBlockDataSet.");
+    vtkErrorMacro("Output port 0 is not a vtkMultiBlockDataSet.");
+    return 0;
+  }
+
+  // Output port 1: filled polygons (only used when GenerateFilledPolygons is true)
+vtkInformation* outInfo1 = outputVector->GetInformationObject(1);
+vtkMultiBlockDataSet* filledOutput =
+vtkMultiBlockDataSet::SafeDownCast(outInfo1->Get(vtkDataObject::DATA_OBJECT()));
+
+  if (!filledOutput)
+  {
+    vtkErrorMacro("Output port 1 is not a vtkMultiBlockDataSet.");
     return 0;
   }
 
@@ -294,7 +332,8 @@ int vtkImageLabelContourExtractor::RequestData(
   if (labels.empty())
   {
     vtkWarningMacro("No labels found in the input image.");
-    output->SetNumberOfBlocks(0);
+    contourOutput->SetNumberOfBlocks(0);
+    filledOutput->SetNumberOfBlocks(0);
     return 1;
   }
 
@@ -309,7 +348,8 @@ int vtkImageLabelContourExtractor::RequestData(
   if (labels.empty())
   {
     vtkWarningMacro("All labels were excluded (background only).");
-    output->SetNumberOfBlocks(0);
+    contourOutput->SetNumberOfBlocks(0);
+    filledOutput->SetNumberOfBlocks(0);
     return 1;
   }
 
@@ -340,28 +380,74 @@ int vtkImageLabelContourExtractor::RequestData(
     }
   });
 
-  // ── Phase 4: Serial assembly into vtkMultiBlockDataSet ───────────────────
+  // ── Phase 3b: Parallel filled polygon generation (if enabled) ────────────
+  std::vector<vtkSmartPointer<vtkPolyData>> filledPolygons(static_cast<size_t>(numLabels));
+
+  if (this->GenerateFilledPolygons)
+  {
+    vtkSMPTools::For(0, numLabels, [&](vtkIdType begin, vtkIdType end) {
+      for (vtkIdType li = begin; li < end; ++li)
+      {
+        filledPolygons[static_cast<size_t>(li)] =
+          this->GenerateFilledPolygonFromContour(contours[static_cast<size_t>(li)]);
+      }
+    });
+  }
+
+  // ── Phase 4: Serial assembly into vtkMultiBlockDataSet(s) ────────────────
   // vtkMultiBlockDataSet::SetBlock is NOT thread-safe, so this phase is serial.
-  output->SetNumberOfBlocks(static_cast<unsigned int>(numLabels));
+
+  // --- Port 0: Contours (always) ---
+  contourOutput->SetNumberOfBlocks(static_cast<unsigned int>(numLabels));
 
   for (vtkIdType li = 0; li < numLabels; ++li)
   {
     const double labelValue = labels[static_cast<size_t>(li)];
     vtkPolyData* poly = contours[static_cast<size_t>(li)];
 
-    // Attach the label value as FieldData on the polydata.
+    // Attach the actual pixel value as FieldData on the polydata.
     vtkNew<vtkDoubleArray> labelArr;
     labelArr->SetName("LabelValue");
     labelArr->SetNumberOfTuples(1);
     labelArr->SetValue(0, labelValue);
     poly->GetFieldData()->AddArray(labelArr);
 
-    output->SetBlock(static_cast<unsigned int>(li), poly);
+    contourOutput->SetBlock(static_cast<unsigned int>(li), poly);
 
     // Set human-readable block name.
     std::string blockName = "Label_" + std::to_string(static_cast<int>(labelValue));
-    output->GetMetaData(static_cast<unsigned int>(li))
+    contourOutput->GetMetaData(static_cast<unsigned int>(li))
       ->Set(vtkCompositeDataSet::NAME(), blockName.c_str());
+  }
+
+  // --- Port 1: Filled polygons (only if enabled) ---
+  if (this->GenerateFilledPolygons)
+  {
+    filledOutput->SetNumberOfBlocks(static_cast<unsigned int>(numLabels));
+
+    for (vtkIdType li = 0; li < numLabels; ++li)
+    {
+      const double labelValue = labels[static_cast<size_t>(li)];
+      vtkPolyData* filledPoly = filledPolygons[static_cast<size_t>(li)];
+
+      // Attach the actual pixel value as FieldData on the filled polydata.
+      vtkNew<vtkDoubleArray> labelArr;
+      labelArr->SetName("LabelValue");
+      labelArr->SetNumberOfTuples(1);
+      labelArr->SetValue(0, labelValue);
+      filledPoly->GetFieldData()->AddArray(labelArr);
+
+      filledOutput->SetBlock(static_cast<unsigned int>(li), filledPoly);
+
+      // Set human-readable block name.
+      std::string blockName = "Label_" + std::to_string(static_cast<int>(labelValue));
+      filledOutput->GetMetaData(static_cast<unsigned int>(li))
+        ->Set(vtkCompositeDataSet::NAME(), blockName.c_str());
+    }
+  }
+  else
+  {
+    filledOutput->SetNumberOfBlocks(0);
   }
 
   return 1;
