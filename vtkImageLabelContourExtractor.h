@@ -18,18 +18,33 @@ class vtkPolyData;
  *
  * This filter accepts a 2D vtkImageData containing discrete label (pixel) values
  * (e.g., produced by vtkImageReslice from a 3D segmentation volume) and extracts
- * iso-contours for every unique label.  The output is a vtkMultiBlockDataSet
- * where each block is a vtkPolyData representing the contour(s) of one label.
+ * iso-contours for every unique label.
+ *
+ * ## Two output ports
+ *
+ * - **Port 0 (Contours)**: A vtkMultiBlockDataSet where each block is a vtkPolyData
+ *   containing the contour polyline(s) of one label. Always generated.
+ * - **Port 1 (Filled Polygons)**: A vtkMultiBlockDataSet where each block is a
+ *   vtkPolyData containing the filled triangulated polygon(s) of one label.
+ *   Only generated when GenerateFilledPolygons is true.
+ *
+ * Retrieve outputs via:
+ * @code
+ *   extractor->GetOutput(0);  // contours
+ *   extractor->GetOutput(1);  // filled polygons
+ * @endcode
  *
  * ## 4-phase parallel pipeline (vtkSMPTools)
  *
  * - **Phase 1** – Parallel label collection using vtkSMPThreadLocal.
  * - **Phase 2** – Single-pass O(N) parallel binary-mask generation.
  * - **Phase 3** – Per-label parallel contour extraction (independent VTK pipelines).
- * - **Phase 4** – Serial assembly into vtkMultiBlockDataSet.
+ * - **Phase 3b** – Per-label parallel filled polygon generation (if enabled).
+ * - **Phase 4** – Serial assembly into vtkMultiBlockDataSet(s).
  *
  * Each output vtkPolyData carries a vtkDoubleArray named "LabelValue" in its
- * FieldData, and the corresponding block is named "Label_<intValue>".
+ * FieldData storing the actual pixel value, and the corresponding block is
+ * named "Label_<intValue>".
  *
  * ### Typical usage
  * @code
@@ -37,8 +52,10 @@ class vtkPolyData;
  *   extractor->SetInputData(sliceImage);   // 2D vtkImageData
  *   extractor->SetBackgroundValue(0.0);    // skip background
  *   extractor->SmoothContoursOn();         // optional Gaussian smoothing
+ *   extractor->GenerateFilledPolygonsOn(); // enable filled polygon output
  *   extractor->Update();
- *   vtkMultiBlockDataSet* output = extractor->GetOutput();
+ *   vtkMultiBlockDataSet* contours = extractor->GetOutput(0);
+ *   vtkMultiBlockDataSet* filled   = extractor->GetOutput(1);
  * @endcode
  *
  * @note Requires VTK 9.1+. The input must be a 2D image (one extent dimension == 1).
@@ -87,11 +104,23 @@ public:
   vtkGetMacro(SmoothStandardDeviation, double);
   ///@}
 
+  ///@{
+  /**
+   * Enable / disable filled polygon generation on output port 1.
+   * When true, closed contours are triangulated into filled polygon surfaces
+   * using vtkContourTriangulator. Default: false.
+   */
+  vtkSetMacro(GenerateFilledPolygons, bool);
+  vtkGetMacro(GenerateFilledPolygons, bool);
+  vtkBooleanMacro(GenerateFilledPolygons, bool);
+  ///@}
+
 protected:
   vtkImageLabelContourExtractor();
   ~vtkImageLabelContourExtractor() override;
 
   int FillInputPortInformation(int port, vtkInformation* info) override;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
@@ -107,7 +136,7 @@ private:
    * Build L binary masks in a single parallel scan.
    * @param input       Source label image.
    * @param labels      Sorted list of labels to process.
-   * @param labelIndex  O(1) map: encoded-label → index in [0, L).
+   * @param labelIndex  O(1) map: encoded-label -> index in [0, L).
    * @return            Vector of L binary float images (one per label).
    */
   std::vector<vtkSmartPointer<vtkImageData>> BuildAllBinaryMasksSMP(
@@ -119,11 +148,16 @@ private:
   /** Extract contour from a single binary mask (called in parallel per label). */
   vtkSmartPointer<vtkPolyData> ExtractContourFromMask(vtkImageData* binaryMask);
 
+  // ── Phase 3b ────────────────────────────────────────────────────────────
+  /** Generate filled polygon from a contour polydata (called in parallel per label). */
+  vtkSmartPointer<vtkPolyData> GenerateFilledPolygonFromContour(vtkPolyData* contour);
+
   // ── Parameters ──────────────────────────────────────────────────────────
   double BackgroundValue;
   bool UseBackgroundValue;
   bool SmoothContours;
   double SmoothStandardDeviation;
+  bool GenerateFilledPolygons;
 };
 
 #endif // vtkImageLabelContourExtractor_h
