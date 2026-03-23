@@ -43,6 +43,9 @@ vtkImageLabelContourExtractor::vtkImageLabelContourExtractor()
   , SmoothContours(false)
   , SmoothStandardDeviation(0.5)
   , GenerateFilledPolygons(false)
+  , LastInputMTime(0)
+  , LastFilterMTime(0)
+  , LastUpdateRecomputed(false)
 {
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(2);
@@ -60,6 +63,8 @@ void vtkImageLabelContourExtractor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "SmoothContours: " << (this->SmoothContours ? "true" : "false") << "\n";
   os << indent << "SmoothStandardDeviation: " << this->SmoothStandardDeviation << "\n";
   os << indent << "GenerateFilledPolygons: " << (this->GenerateFilledPolygons ? "true" : "false") << "\n";
+  os << indent << "LastUpdateRecomputed: " << (this->LastUpdateRecomputed ? "true" : "false") << "\n";
+  os << indent << "LastComputeTime: " << this->GetLastComputeTime() << "\n";
 }
 
 // ============================================================================
@@ -73,6 +78,19 @@ void vtkImageLabelContourExtractor::SetSmoothStandardDeviation(double sigma)
     this->SmoothStandardDeviation = clamped;
     this->Modified();
   }
+}
+
+// ============================================================================
+//  Caching accessors
+// ============================================================================
+bool vtkImageLabelContourExtractor::GetLastUpdateRecomputed() const
+{
+  return this->LastUpdateRecomputed;
+}
+
+vtkMTimeType vtkImageLabelContourExtractor::GetLastComputeTime() const
+{
+  return this->ComputeTimeStamp.GetMTime();
 }
 
 // ============================================================================
@@ -296,6 +314,19 @@ vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
     return 0;
   }
 
+  // ── Cache check: skip recomputation if input and filter are unchanged ──
+  const vtkMTimeType inputMTime = input->GetMTime();
+  const vtkMTimeType filterMTime = this->GetMTime();
+
+  if (this->ComputeTimeStamp.GetMTime() > 0 &&
+      inputMTime == this->LastInputMTime &&
+      filterMTime == this->LastFilterMTime)
+  {
+    // Input and filter parameters have not changed — reuse cached output.
+    this->LastUpdateRecomputed = false;
+    return 1;
+  }
+
   int dims[3];
   input->GetDimensions(dims);
   if (dims[0] > 1 && dims[1] > 1 && dims[2] > 1)
@@ -449,6 +480,12 @@ vtkMultiBlockDataSet::SafeDownCast(outInfo1->Get(vtkDataObject::DATA_OBJECT()));
   {
     filledOutput->SetNumberOfBlocks(0);
   }
+
+  // ── Update cache state ──────────────────────────────────────────────────
+  this->LastInputMTime = inputMTime;
+  this->LastFilterMTime = filterMTime;
+  this->ComputeTimeStamp.Modified();
+  this->LastUpdateRecomputed = true;
 
   return 1;
 }
