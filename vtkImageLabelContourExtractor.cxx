@@ -43,9 +43,6 @@ vtkImageLabelContourExtractor::vtkImageLabelContourExtractor()
   , SmoothContours(false)
   , SmoothStandardDeviation(0.5)
   , GenerateFilledPolygons(false)
-  , LastInputMTime(0)
-  , LastFilterMTime(0)
-  , LastUpdateRecomputed(false)
 {
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(2);
@@ -63,8 +60,6 @@ void vtkImageLabelContourExtractor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "SmoothContours: " << (this->SmoothContours ? "true" : "false") << "\n";
   os << indent << "SmoothStandardDeviation: " << this->SmoothStandardDeviation << "\n";
   os << indent << "GenerateFilledPolygons: " << (this->GenerateFilledPolygons ? "true" : "false") << "\n";
-  os << indent << "LastUpdateRecomputed: " << (this->LastUpdateRecomputed ? "true" : "false") << "\n";
-  os << indent << "LastComputeTime: " << this->GetLastComputeTime() << "\n";
 }
 
 // ============================================================================
@@ -78,19 +73,6 @@ void vtkImageLabelContourExtractor::SetSmoothStandardDeviation(double sigma)
     this->SmoothStandardDeviation = clamped;
     this->Modified();
   }
-}
-
-// ============================================================================
-//  Caching accessors
-// ============================================================================
-bool vtkImageLabelContourExtractor::GetLastUpdateRecomputed() const
-{
-  return this->LastUpdateRecomputed;
-}
-
-vtkMTimeType vtkImageLabelContourExtractor::GetLastComputeTime() const
-{
-  return this->ComputeTimeStamp.GetMTime();
 }
 
 // ============================================================================
@@ -304,27 +286,14 @@ int vtkImageLabelContourExtractor::RequestData(
   vtkInformationVector* outputVector)
 {
   // ── Obtain input / output ────────────────────────────────────────────────
-vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-vtkImageData* input =
-vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkImageData* input =
+    vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!input)
   {
     vtkErrorMacro("Input is not a vtkImageData.");
     return 0;
-  }
-
-  // ── Cache check: skip recomputation if input and filter are unchanged ──
-  const vtkMTimeType inputMTime = input->GetMTime();
-  const vtkMTimeType filterMTime = this->GetMTime();
-
-  if (this->ComputeTimeStamp.GetMTime() > 0 &&
-      inputMTime == this->LastInputMTime &&
-      filterMTime == this->LastFilterMTime)
-  {
-    // Input and filter parameters have not changed — reuse cached output.
-    this->LastUpdateRecomputed = false;
-    return 1;
   }
 
   int dims[3];
@@ -336,9 +305,9 @@ vtkImageData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
   }
 
   // Output port 0: contours (always)
-vtkInformation* outInfo0 = outputVector->GetInformationObject(0);
-vtkMultiBlockDataSet* contourOutput =
-vtkMultiBlockDataSet::SafeDownCast(outInfo0->Get(vtkDataObject::DATA_OBJECT()));
+  vtkInformation* outInfo0 = outputVector->GetInformationObject(0);
+  vtkMultiBlockDataSet* contourOutput =
+    vtkMultiBlockDataSet::SafeDownCast(outInfo0->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!contourOutput)
   {
@@ -347,9 +316,9 @@ vtkMultiBlockDataSet::SafeDownCast(outInfo0->Get(vtkDataObject::DATA_OBJECT()));
   }
 
   // Output port 1: filled polygons (only used when GenerateFilledPolygons is true)
-vtkInformation* outInfo1 = outputVector->GetInformationObject(1);
-vtkMultiBlockDataSet* filledOutput =
-vtkMultiBlockDataSet::SafeDownCast(outInfo1->Get(vtkDataObject::DATA_OBJECT()));
+  vtkInformation* outInfo1 = outputVector->GetInformationObject(1);
+  vtkMultiBlockDataSet* filledOutput =
+    vtkMultiBlockDataSet::SafeDownCast(outInfo1->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!filledOutput)
   {
@@ -480,12 +449,6 @@ vtkMultiBlockDataSet::SafeDownCast(outInfo1->Get(vtkDataObject::DATA_OBJECT()));
   {
     filledOutput->SetNumberOfBlocks(0);
   }
-
-  // ── Update cache state ──────────────────────────────────────────────────
-  this->LastInputMTime = inputMTime;
-  this->LastFilterMTime = filterMTime;
-  this->ComputeTimeStamp.Modified();
-  this->LastUpdateRecomputed = true;
 
   return 1;
 }

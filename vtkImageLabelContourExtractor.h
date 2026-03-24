@@ -3,7 +3,6 @@
 
 #include <vtkMultiBlockDataSetAlgorithm.h>
 #include <vtkSmartPointer.h>
-#include <vtkTimeStamp.h>
 
 #include <cstdint>
 #include <unordered_map>
@@ -28,14 +27,6 @@ class vtkPolyData;
  * - **Port 1 (Filled Polygons)**: A vtkMultiBlockDataSet where each block is a
  *   vtkPolyData containing the filled triangulated polygon(s) of one label.
  *   Only generated when GenerateFilledPolygons is true.
- *
- * ## Caching
- *
- * When Update() is called but neither the input image nor any filter parameter
- * has changed since the last computation, the expensive 4-phase pipeline is
- * skipped and the cached output is reused.  Use GetLastUpdateRecomputed() to
- * query whether the most recent Update() actually ran the computation, and
- * GetLastComputeTime() to retrieve the timestamp of the last computation.
  *
  * Retrieve outputs via:
  * @code
@@ -124,25 +115,6 @@ public:
   vtkBooleanMacro(GenerateFilledPolygons, bool);
   ///@}
 
-  ///@{
-  /**
-   * Returns true if the last call to Update() actually performed computation
-   * (i.e., the input or parameters had changed). Returns false if cached
-   * results were reused.
-   */
-  bool GetLastUpdateRecomputed() const;
-  ///@}
-
-  ///@{
-  /**
-   * Returns the vtkMTimeType timestamp of the last successful computation.
-   * Returns 0 if no computation has been performed yet.
-   * External code can compare this with input->GetMTime() to predict
-   * whether the next Update() will need to recompute.
-   */
-  vtkMTimeType GetLastComputeTime() const;
-  ///@}
-
 protected:
   vtkImageLabelContourExtractor();
   ~vtkImageLabelContourExtractor() override;
@@ -186,12 +158,6 @@ private:
   bool SmoothContours;
   double SmoothStandardDeviation;
   bool GenerateFilledPolygons;
-
-  // ── Caching ──────────────────────────────────────────────────────────────
-  vtkMTimeType LastInputMTime;   // MTime of input when last computed
-  vtkMTimeType LastFilterMTime;  // MTime of this filter when last computed
-  vtkTimeStamp ComputeTimeStamp; // Timestamp of last actual computation
-  bool LastUpdateRecomputed;     // Whether last Update() recomputed
 };
 
 #endif // vtkImageLabelContourExtractor_h
