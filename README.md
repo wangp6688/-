@@ -35,7 +35,8 @@ vtkMultiBlockDataSet* output = extractor->GetOutput();
 
 Header-only utility (`CurveVectorTransport.h`) that **parallel-transports a set
 of direction vectors along a discrete 3-D curve** (Bishop-frame / rotation-minimising
-frame propagation).  No VTK or any other external dependency is required.
+frame propagation).  Uses `vtkVector3d` for coordinates and `vtkMath` for all
+vector operations.
 
 ### Problem statement
 
@@ -43,7 +44,7 @@ Given:
 
 | Input | Description |
 |-------|-------------|
-| Ordered **point set** | Defines the curve as a 3-D polyline. |
+| Ordered **point set** | Defines the curve as a 3-D polyline (`std::vector<vtkVector3d>`). |
 | **Start point** | A point on (or near) the curve. The origin of the local frame. |
 | **Direction vectors** | Vectors lying in the plane whose normal is the curve tangent at the start point (i.e. perpendicular to the tangent). |
 | **End point** | Target point on (or near) the curve. |
@@ -61,10 +62,12 @@ analogue of parallel transport.
 
 ```
 For each edge i → i+1 (walking from startIndex to endIndex):
-    T_next  = normalize( P[i+1] - P[i] )          // next edge tangent
-    axis    = T_current × T_next                   // rotation axis
-    angle   = arccos( T_current · T_next )         // rotation angle
-    Rotate every direction vector around axis by angle   (Rodrigues)
+    diff    = P[i+1] - P[i]
+    T_next  = Normalize( diff )                       // copy, then vtkMath::Normalize in-place
+    axis    = vtkMath::Cross( T_current, T_next )     // rotation axis
+    sinA    = vtkMath::Norm( axis )
+    cosA    = vtkMath::Dot( T_current, T_next )
+    Rotate every direction vector (Rodrigues' formula)
     T_current = T_next
 ```
 
@@ -76,10 +79,8 @@ removed before transport begins, enforcing the perpendicularity constraint.
 ```cpp
 #include "CurveVectorTransport.h"
 
-using Vec3 = CurveVectorTransport::Vec3;
-
 // Define the curve.
-std::vector<Vec3> pts = {
+std::vector<vtkVector3d> pts = {
     {0.0, 0.0, 0.0},
     {1.0, 0.0, 0.0},
     {2.0, 0.5, 0.0},
@@ -88,26 +89,38 @@ std::vector<Vec3> pts = {
 
 // Direction vectors at the start, perpendicular to the tangent there.
 // (tangent at index 0 ≈ {1,0,0}, so {0,1,0} and {0,0,1} are valid)
-std::vector<Vec3> dirs = { {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0} };
+std::vector<vtkVector3d> dirs = { {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0} };
 
-CurveVectorTransport cvt;
-cvt.SetCurvePoints(pts);
-cvt.SetStartPoint({0.0, 0.0, 0.0});
-cvt.SetDirections(dirs);
+// Transport to the end point — single function call.
+std::vector<vtkVector3d> result = TransportVectorsAlongCurve(
+    pts,
+    vtkVector3d(0.0, 0.0, 0.0),   // start point
+    dirs,
+    vtkVector3d(3.0, 1.0, 0.0));  // end point
 
-// Transport to the end point.
-std::vector<Vec3> result = cvt.TransportToEndPoint({3.0, 1.0, 0.0});
 // result[0] and result[1] are the transported vectors at the end.
 ```
 
 ### API
 
-| Method | Description |
-|--------|-------------|
-| `SetCurvePoints(pts)` | Set the ordered 3-D polyline. |
-| `SetStartPoint(pt)` | Set the start point (matched to nearest curve point). |
-| `SetDirections(dirs)` | Set the direction vectors at the start. |
-| `TransportToEndPoint(pt)` → `vector<Vec3>` | Run the transport; returns one result vector per input direction. |
+```cpp
+std::vector<vtkVector3d> TransportVectorsAlongCurve(
+    const std::vector<vtkVector3d>& curvePoints,
+    const vtkVector3d&              startPoint,
+    const std::vector<vtkVector3d>& directions,
+    const vtkVector3d&              endPoint);
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `curvePoints` | Ordered 3-D polyline (≥ 2 points). |
+| `startPoint` | Origin of the transport (matched to nearest curve point). |
+| `directions` | Direction vectors at the start (perpendicular to the tangent). |
+| `endPoint` | Target point (matched to nearest curve point). |
+| **Return** | Transported vectors, one per input direction. |
+
+Throws `std::invalid_argument` if the curve has fewer than 2 points or if
+`directions` is empty.
 
 ### Notes
 
@@ -116,4 +129,5 @@ std::vector<Vec3> result = cvt.TransportToEndPoint({3.0, 1.0, 0.0});
   smaller than start index).
 - Degenerate cases (zero-length edges, anti-parallel consecutive tangents) are
   handled gracefully.
-- Header-only, standard **C++14**, no external dependencies.
+- Requires VTK (`vtkMath`, `vtkVector`). Header-only, C++14.
+

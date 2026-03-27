@@ -14,8 +14,8 @@
  *   - An **end point** on the curve.
  *
  * Compute:
- *   - The direction vectors "projected" (transported) from the start to the
- *     end along the curve, staying perpendicular to the tangent at every step.
+ *   - The direction vectors transported from the start to the end along the
+ *     curve, staying perpendicular to the tangent at every step.
  *
  * Method
  * ------
@@ -29,20 +29,10 @@
  * @code
  *   #include "CurveVectorTransport.h"
  *
- *   using Vec3 = CurveVectorTransport::Vec3;
+ *   std::vector<vtkVector3d> pts  = { {0,0,0}, {1,0,0}, {2,0.5,0}, {3,1,0} };
+ *   std::vector<vtkVector3d> dirs = { {0,1,0}, {0,0,1} };
  *
- *   // Build the curve point set.
- *   std::vector<Vec3> pts = { {0,0,0}, {1,0,0}, {2,0.5,0}, {3,1,0} };
- *
- *   // Direction vectors at the start (perpendicular to the tangent there).
- *   std::vector<Vec3> dirs = { {0,1,0}, {0,0,1} };
- *
- *   CurveVectorTransport cvt;
- *   cvt.SetCurvePoints(pts);
- *   cvt.SetStartPoint({0,0,0});
- *   cvt.SetDirections(dirs);
- *
- *   auto result = cvt.TransportToEndPoint({3,1,0});
+ *   auto result = TransportVectorsAlongCurve(pts, {0,0,0}, dirs, {3,1,0});
  *   // result[0] and result[1] are the transported vectors at the end point.
  * @endcode
  *
@@ -53,244 +43,210 @@
  *   before transport begins, enforcing the perpendicularity constraint.
  * - Transport can proceed in either direction along the curve (start index
  *   greater or smaller than end index).
- * - No external dependencies – standard C++14 only.
+ * - Requires VTK (vtkMath, vtkVector).
  */
 
 #ifndef CURVE_VECTOR_TRANSPORT_H
 #define CURVE_VECTOR_TRANSPORT_H
 
-#include <array>
-#include <cmath>
+#include <vtkMath.h>
+#include <vtkVector.h>
+
+#include <cstdlib>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 
-class CurveVectorTransport
+// ── Implementation details (not part of the public API) ───────────────────────
+namespace CurveVectorTransportDetail
 {
-public:
-  // ── Public types ───────────────────────────────────────────────────────────
 
-  /** A 3-D vector / point represented as a plain array. */
-  using Vec3 = std::array<double, 3>;
+/** Normalize @p v and return the result (does not modify @p v). */
+inline vtkVector3d Normalized(vtkVector3d v)
+{
+  const double n = vtkMath::Norm(v.GetData());
+  if (n > 1e-15)
+    vtkMath::Normalize(v.GetData());
+  return v;
+}
 
-  // ── Setters ────────────────────────────────────────────────────────────────
+/** Project @p v onto the plane with unit normal @p n: v - (v·n)*n */
+inline vtkVector3d ProjectOntoPlane(const vtkVector3d& v, const vtkVector3d& n)
+{
+  return v - n * vtkMath::Dot(v.GetData(), n.GetData());
+}
 
-  /** Set the ordered point set that defines the curve. */
-  void SetCurvePoints(const std::vector<Vec3>& pts) { m_pts = pts; }
+/**
+ * Return an arbitrary unit vector perpendicular to unit vector @p t.
+ * Used only for the degenerate anti-parallel case.
+ */
+inline vtkVector3d Perpendicular(const vtkVector3d& t)
+{
+  // Pick the global axis least aligned with t, then orthogonalise.
+  vtkVector3d candidate;
+  if (std::abs(t[0]) < std::abs(t[1]) && std::abs(t[0]) < std::abs(t[2]))
+    candidate = vtkVector3d(1, 0, 0);
+  else if (std::abs(t[1]) < std::abs(t[2]))
+    candidate = vtkVector3d(0, 1, 0);
+  else
+    candidate = vtkVector3d(0, 0, 1);
 
-  /** Set the start point on the curve. */
-  void SetStartPoint(const Vec3& pt) { m_start = pt; }
+  vtkVector3d result;
+  vtkMath::Cross(t.GetData(), candidate.GetData(), result.GetData());
+  return Normalized(result);
+}
 
-  /**
-   * Set the direction vectors at the start point.
-   *
-   * They are expected to be perpendicular to the curve tangent at the start,
-   * but this is not strictly required: any component along the tangent is
-   * automatically removed before the transport begins.
-   */
-  void SetDirections(const std::vector<Vec3>& dirs) { m_dirs = dirs; }
+/**
+ * Rotate @p v by the rotation that maps unit vector @p T0 onto unit vector
+ * @p T1, using Rodrigues' formula.
+ *
+ * Three cases:
+ *  - T0 ≈ T1   (same direction):   identity, return v unchanged.
+ *  - T0 ≈ -T1  (anti-parallel):    180° rotation around a perpendicular axis.
+ *  - General:  rotate around (T0 × T1) by arccos(T0 · T1).
+ */
+inline vtkVector3d RotateByTangentChange(const vtkVector3d& v,
+                                         const vtkVector3d& T0,
+                                         const vtkVector3d& T1)
+{
+  vtkVector3d axis;
+  vtkMath::Cross(T0.GetData(), T1.GetData(), axis.GetData());
 
-  // ── Main computation ───────────────────────────────────────────────────────
+  const double sinA = vtkMath::Norm(axis.GetData()); // sin of the rotation angle
+  const double cosA = vtkMath::Dot(T0.GetData(), T1.GetData()); // cos
 
-  /**
-   * Transport all stored direction vectors from the start point to @p endPoint
-   * along the curve and return the resulting vectors at @p endPoint.
-   *
-   * @param endPoint  Target point (matched to the nearest curve point).
-   * @return          Transported direction vectors, one per input direction.
-   *
-   * @throws std::runtime_error  If the curve has fewer than 2 points or if
-   *                             no direction vectors have been set.
-   */
-  std::vector<Vec3> TransportToEndPoint(const Vec3& endPoint) const
+  // Nearly identical tangents — no meaningful rotation.
+  if (sinA < 1e-10)
   {
-    if (m_pts.size() < 2)
-      throw std::runtime_error(
-        "CurveVectorTransport: curve must have at least 2 points.");
-    if (m_dirs.empty())
-      throw std::runtime_error(
-        "CurveVectorTransport: no direction vectors have been set.");
+    if (cosA >= 0.0)
+      return v; // same direction, identity
 
-    // 1. Locate start and end indices (nearest-point search).
-    const int si = NearestIndex(m_start);
-    const int ei = NearestIndex(endPoint);
-
-    // 2. Compute the initial tangent in the direction of travel so it is
-    //    consistent with the first edge direction used in the walk below.
-    //    (Using the bi-directional TangentAt would give a forward-pointing
-    //    tangent even when we travel backward, causing a spurious 180° flip.)
-    const int step = (ei >= si) ? +1 : -1;
-    Vec3 T = TravelTangentAt(si, step);
-
-    // 3. Project the input directions onto the plane perpendicular to T.
-    std::vector<Vec3> vecs(m_dirs.size());
-    for (std::size_t k = 0; k < m_dirs.size(); ++k)
-      vecs[k] = ProjectOntoPlane(m_dirs[k], T);
-
-    // 4. Walk from si to ei one edge at a time, rotating the frame at each step.
-    for (int i = si; i != ei; i += step)
-    {
-      // Edge tangent in the direction of travel.
-      Vec3 T_next = Normalize(Sub(m_pts[i + step], m_pts[i]));
-
-      // Apply the rotation that maps T onto T_next to every direction vector.
-      for (auto& v : vecs)
-        v = RotateByTangentChange(v, T, T_next);
-
-      T = T_next;
-    }
-
-    return vecs;
+    // Anti-parallel tangents: 180-degree rotation around any perpendicular axis.
+    const vtkVector3d perp = Perpendicular(T0);
+    // Rodrigues at theta = pi: v_rot = 2*(perp·v)*perp - v
+    return perp * (2.0 * vtkMath::Dot(perp.GetData(), v.GetData())) - v;
   }
 
-private:
-  // ── Data members ──────────────────────────────────────────────────────────
+  // General case — Rodrigues' formula:
+  //   v_rot = v*cos(θ) + (k × v)*sin(θ) + k*(k · v)*(1 − cos(θ))
+  const vtkVector3d k = axis * (1.0 / sinA); // normalised rotation axis
 
-  std::vector<Vec3> m_pts;
-  Vec3              m_start{};
-  std::vector<Vec3> m_dirs;
+  vtkVector3d kCrossV;
+  vtkMath::Cross(k.GetData(), v.GetData(), kCrossV.GetData());
 
-  // ── Vector math helpers ───────────────────────────────────────────────────
+  const double kDotV = vtkMath::Dot(k.GetData(), v.GetData());
 
-  static double Dot(const Vec3& a, const Vec3& b)
+  return v * cosA + kCrossV * sinA + k * (kDotV * (1.0 - cosA));
+}
+
+/**
+ * Return the index of the curve point nearest to @p pt using
+ * vtkMath::Distance2BetweenPoints.
+ */
+inline int NearestIndex(const std::vector<vtkVector3d>& pts,
+                        const vtkVector3d& pt)
+{
+  int    best  = 0;
+  double bestD = std::numeric_limits<double>::max();
+  for (int i = 0; i < static_cast<int>(pts.size()); ++i)
   {
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    const double d2 =
+      vtkMath::Distance2BetweenPoints(pts[i].GetData(), pt.GetData());
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  return best;
+}
+
+/**
+ * Tangent at index @p idx pointing in the direction of travel (@p step = ±1).
+ *
+ * For a forward walk  (step = +1) this is the forward-difference tangent.
+ * For a backward walk (step = -1) this is the backward-difference tangent.
+ * This ensures the initial tangent is always consistent with the first
+ * edge direction used in the transport loop.
+ */
+inline vtkVector3d TravelTangentAt(const std::vector<vtkVector3d>& pts,
+                                   int idx, int step)
+{
+  const int n = static_cast<int>(pts.size());
+  if (step >= 0)
+  {
+    // Forward tangent: edge idx → idx+1.
+    if (idx == n - 1) return Normalized(pts[n-1] - pts[n-2]);
+    return Normalized(pts[idx + 1] - pts[idx]);
+  }
+  else
+  {
+    // Backward tangent: edge idx → idx-1 (points toward lower indices).
+    if (idx == 0) return Normalized(pts[0] - pts[1]);
+    return Normalized(pts[idx - 1] - pts[idx]);
+  }
+}
+
+} // namespace CurveVectorTransportDetail
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Transport a set of direction vectors from @p startPoint to @p endPoint
+ * along the discrete 3-D curve defined by @p curvePoints.
+ *
+ * @param curvePoints  Ordered 3-D polyline points (at least 2).
+ * @param startPoint   Origin of the transport (matched to nearest curve point).
+ * @param directions   Direction vectors at the start, expected to be
+ *                     perpendicular to the curve tangent there. Any tangential
+ *                     component is automatically projected out.
+ * @param endPoint     Target point (matched to nearest curve point).
+ * @return             Transported direction vectors, one per input direction.
+ *
+ * @throws std::invalid_argument  If fewer than 2 curve points are provided or
+ *                                if @p directions is empty.
+ */
+inline std::vector<vtkVector3d> TransportVectorsAlongCurve(
+  const std::vector<vtkVector3d>& curvePoints,
+  const vtkVector3d&              startPoint,
+  const std::vector<vtkVector3d>& directions,
+  const vtkVector3d&              endPoint)
+{
+  using namespace CurveVectorTransportDetail;
+
+  if (curvePoints.size() < 2)
+    throw std::invalid_argument(
+      "TransportVectorsAlongCurve: curvePoints must have at least 2 points.");
+  if (directions.empty())
+    throw std::invalid_argument(
+      "TransportVectorsAlongCurve: directions must not be empty.");
+
+  // 1. Locate start and end indices (nearest-point search).
+  const int si = NearestIndex(curvePoints, startPoint);
+  const int ei = NearestIndex(curvePoints, endPoint);
+
+  // 2. Compute the initial tangent in the direction of travel so it is
+  //    consistent with the first edge direction used in the walk below.
+  //    (A bidirectional tangent would cause a spurious 180° flip when
+  //    walking backward.)
+  const int step = (ei >= si) ? +1 : -1;
+  vtkVector3d T = TravelTangentAt(curvePoints, si, step);
+
+  // 3. Project the input directions onto the plane perpendicular to T.
+  std::vector<vtkVector3d> vecs(directions.size());
+  for (std::size_t k = 0; k < directions.size(); ++k)
+    vecs[k] = ProjectOntoPlane(directions[k], T);
+
+  // 4. Walk from si to ei one edge at a time, rotating the frame at each step.
+  for (int i = si; i != ei; i += step)
+  {
+    // Edge tangent in the direction of travel.
+    vtkVector3d T_next = Normalized(curvePoints[i + step] - curvePoints[i]);
+
+    // Apply the rotation that maps T onto T_next to every direction vector.
+    for (auto& v : vecs)
+      v = RotateByTangentChange(v, T, T_next);
+
+    T = T_next;
   }
 
-  static Vec3 Cross(const Vec3& a, const Vec3& b)
-  {
-    return { a[1]*b[2] - a[2]*b[1],
-             a[2]*b[0] - a[0]*b[2],
-             a[0]*b[1] - a[1]*b[0] };
-  }
-
-  static Vec3 Scale(const Vec3& a, double s)
-  {
-    return { a[0]*s, a[1]*s, a[2]*s };
-  }
-
-  static Vec3 Add(const Vec3& a, const Vec3& b)
-  {
-    return { a[0]+b[0], a[1]+b[1], a[2]+b[2] };
-  }
-
-  static Vec3 Sub(const Vec3& a, const Vec3& b)
-  {
-    return { a[0]-b[0], a[1]-b[1], a[2]-b[2] };
-  }
-
-  static double Norm(const Vec3& a) { return std::sqrt(Dot(a, a)); }
-
-  static Vec3 Normalize(const Vec3& a)
-  {
-    const double n = Norm(a);
-    return (n > 1e-15) ? Scale(a, 1.0 / n) : Vec3{0, 0, 0};
-  }
-
-  /**
-   * Project v onto the plane with unit normal n:
-   *   v_proj = v - (v · n) * n
-   */
-  static Vec3 ProjectOntoPlane(const Vec3& v, const Vec3& n)
-  {
-    return Sub(v, Scale(n, Dot(v, n)));
-  }
-
-  /**
-   * Return an arbitrary unit vector perpendicular to the given unit vector t.
-   * Used only for the degenerate anti-parallel case.
-   */
-  static Vec3 Perpendicular(const Vec3& t)
-  {
-    // Pick the global axis least aligned with t, then orthogonalise.
-    const Vec3 candidate =
-      (std::abs(t[0]) < std::abs(t[1]) && std::abs(t[0]) < std::abs(t[2]))
-        ? Vec3{1, 0, 0}
-        : (std::abs(t[1]) < std::abs(t[2]) ? Vec3{0, 1, 0} : Vec3{0, 0, 1});
-    return Normalize(Cross(t, candidate));
-  }
-
-  /**
-   * Rotate vector @p v by the rotation that maps unit vector @p T0 onto
-   * unit vector @p T1, using Rodrigues' formula.
-   *
-   * Three cases:
-   *  - T0 ≈ T1   (same direction):   identity, return v unchanged.
-   *  - T0 ≈ -T1  (anti-parallel):    180° rotation around a perpendicular axis.
-   *  - General:  rotate around (T0 × T1) by arccos(T0 · T1).
-   */
-  static Vec3 RotateByTangentChange(const Vec3& v,
-                                    const Vec3& T0,
-                                    const Vec3& T1)
-  {
-    const Vec3   axis = Cross(T0, T1);
-    const double sinA = Norm(axis);   // sin of the rotation angle
-    const double cosA = Dot(T0, T1); // cos of the rotation angle
-
-    // Nearly identical tangents — no meaningful rotation.
-    if (sinA < 1e-10)
-    {
-      if (cosA >= 0.0)
-        return v; // same direction, identity
-
-      // Anti-parallel tangents: 180-degree rotation around any perpendicular axis.
-      const Vec3 perp = Perpendicular(T0);
-      // Rodrigues at theta = pi: v_rot = 2*(perp · v)*perp - v
-      return Sub(Scale(perp, 2.0 * Dot(perp, v)), v);
-    }
-
-    // General case — Rodrigues' formula:
-    //   v_rot = v*cos(θ) + (k × v)*sin(θ) + k*(k · v)*(1 − cos(θ))
-    const Vec3   k       = Scale(axis, 1.0 / sinA); // normalised rotation axis
-    const double kDotV   = Dot(k, v);
-    const Vec3   kCrossV = Cross(k, v);
-
-    return Add(Add(Scale(v, cosA),
-                   Scale(kCrossV, sinA)),
-               Scale(k, kDotV * (1.0 - cosA)));
-  }
-
-  // ── Curve helpers ─────────────────────────────────────────────────────────
-
-  /** Return the index of the curve point nearest to @p pt. */
-  int NearestIndex(const Vec3& pt) const
-  {
-    int    best  = 0;
-    double bestD = std::numeric_limits<double>::max();
-    for (int i = 0; i < static_cast<int>(m_pts.size()); ++i)
-    {
-      const Vec3   d  = Sub(m_pts[i], pt);
-      const double d2 = Dot(d, d);
-      if (d2 < bestD) { bestD = d2; best = i; }
-    }
-    return best;
-  }
-
-  /**
-   * Tangent at index @p idx pointing in the direction of travel (@p step = ±1).
-   *
-   * For a forward walk  (step = +1) this is the forward-difference tangent.
-   * For a backward walk (step = -1) this is the backward-difference tangent
-   * (i.e. it points in the −x direction of the curve).
-   * This ensures the initial tangent is always consistent with the first
-   * edge direction used in the transport loop.
-   */
-  Vec3 TravelTangentAt(int idx, int step) const
-  {
-    const int n = static_cast<int>(m_pts.size());
-    if (step >= 0)
-    {
-      // Forward tangent: edge idx → idx+1.
-      if (idx == n - 1) return Normalize(Sub(m_pts[n-1], m_pts[n-2]));
-      return Normalize(Sub(m_pts[idx + 1], m_pts[idx]));
-    }
-    else
-    {
-      // Backward tangent: edge idx → idx-1 (points toward lower indices).
-      if (idx == 0) return Normalize(Sub(m_pts[0], m_pts[1]));
-      return Normalize(Sub(m_pts[idx - 1], m_pts[idx]));
-    }
-  }
-};
+  return vecs;
+}
 
 #endif // CURVE_VECTOR_TRANSPORT_H
