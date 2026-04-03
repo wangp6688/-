@@ -48,8 +48,6 @@ vtkImageLabelContourExtractor::vtkImageLabelContourExtractor()
   , DebounceInterval(200)
   , LastComputeTime()
   , HasCachedOutput(false)
-  , CachedMTime(0)
-  , CachedInputMTime(0)
   , CachedContourOutput(nullptr)
   , CachedFilledOutput(nullptr)
 {
@@ -348,9 +346,10 @@ int vtkImageLabelContourExtractor::RequestData(
   }
 
   // ── Debounce check ──────────────────────────────────────────────────────
-  if (this->EnableDebounce && this->HasCachedOutput &&
-      this->GetMTime() == this->CachedMTime &&
-      input->GetMTime() == this->CachedInputMTime)
+  // Within the debounce time window, unconditionally return cached results
+  // regardless of whether input data or filter parameters have changed.
+  // The real computation only runs once the window has elapsed.
+  if (this->EnableDebounce && this->HasCachedOutput)
   {
     auto now = std::chrono::steady_clock::now();
     auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -358,7 +357,6 @@ int vtkImageLabelContourExtractor::RequestData(
 
     if (elapsedMs < this->DebounceInterval)
     {
-      // Within debounce window with no parameter or input changes: reuse cached results.
       contourOutput->ShallowCopy(this->CachedContourOutput);
       filledOutput->ShallowCopy(this->CachedFilledOutput);
       return 1;
@@ -503,8 +501,6 @@ int vtkImageLabelContourExtractor::RequestData(
     this->CachedContourOutput->ShallowCopy(contourOutput);
     this->CachedFilledOutput->ShallowCopy(filledOutput);
     this->LastComputeTime = std::chrono::steady_clock::now();
-    this->CachedMTime = this->GetMTime();
-    this->CachedInputMTime = input->GetMTime();
     this->HasCachedOutput = true;
   }
 

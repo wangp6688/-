@@ -120,10 +120,17 @@ public:
   /**
    * Enable / disable debounce for the computation pipeline.
    * When enabled, rapid successive calls to Update() within the debounce
-   * interval will reuse cached results from the previous computation instead
-   * of recomputing. This is useful when the filter is driven by interactive
+   * interval will unconditionally reuse cached results from the previous
+   * computation — even if the input data or filter parameters have changed.
+   * A real recomputation only occurs on the first Update() call after the
+   * debounce window has elapsed, ensuring the final result is always
+   * up-to-date. This is useful when the filter is driven by interactive
    * events (e.g., mouse-driven reslicing) that may trigger updates faster
    * than needed. Default: false.
+   *
+   * @warning During the debounce window the output may be stale (reflecting
+   * the previous input/parameters). Only enable this when temporary staleness
+   * is acceptable (e.g., interactive preview scenarios).
    */
   vtkSetMacro(EnableDebounce, bool);
   vtkGetMacro(EnableDebounce, bool);
@@ -192,10 +199,6 @@ private:
   std::chrono::steady_clock::time_point LastComputeTime;
   /** Whether cached outputs from a previous computation are available. */
   bool HasCachedOutput;
-  /** MTime of this filter when the cache was last updated, used to detect parameter changes. */
-  vtkMTimeType CachedMTime;
-  /** MTime of the input data when the cache was last updated, used to detect input changes. */
-  vtkMTimeType CachedInputMTime;
   /** Cached contour output from the last successful computation. */
   vtkSmartPointer<vtkMultiBlockDataSet> CachedContourOutput;
   /** Cached filled polygon output from the last successful computation. */
