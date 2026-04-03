@@ -24,6 +24,7 @@
 #include <vtkStripper.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -43,6 +44,13 @@ vtkImageLabelContourExtractor::vtkImageLabelContourExtractor()
   , SmoothContours(false)
   , SmoothStandardDeviation(0.5)
   , GenerateFilledPolygons(false)
+  , EnableDebounce(false)
+  , DebounceInterval(200)
+  , LastComputeTime()
+  , HasCachedOutput(false)
+  , CachedMTime(0)
+  , CachedContourOutput(nullptr)
+  , CachedFilledOutput(nullptr)
 {
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(2);
@@ -60,6 +68,8 @@ void vtkImageLabelContourExtractor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "SmoothContours: " << (this->SmoothContours ? "true" : "false") << "\n";
   os << indent << "SmoothStandardDeviation: " << this->SmoothStandardDeviation << "\n";
   os << indent << "GenerateFilledPolygons: " << (this->GenerateFilledPolygons ? "true" : "false") << "\n";
+  os << indent << "EnableDebounce: " << (this->EnableDebounce ? "true" : "false") << "\n";
+  os << indent << "DebounceInterval: " << this->DebounceInterval << " ms\n";
 }
 
 // ============================================================================
@@ -71,6 +81,16 @@ void vtkImageLabelContourExtractor::SetSmoothStandardDeviation(double sigma)
   if (clamped != this->SmoothStandardDeviation)
   {
     this->SmoothStandardDeviation = clamped;
+    this->Modified();
+  }
+}
+
+void vtkImageLabelContourExtractor::SetDebounceInterval(int intervalMs)
+{
+  int clamped = std::max(1, std::min(10000, intervalMs));
+  if (clamped != this->DebounceInterval)
+  {
+    this->DebounceInterval = clamped;
     this->Modified();
   }
 }
@@ -326,6 +346,23 @@ int vtkImageLabelContourExtractor::RequestData(
     return 0;
   }
 
+  // ── Debounce check ──────────────────────────────────────────────────────
+  if (this->EnableDebounce && this->HasCachedOutput &&
+      this->GetMTime() == this->CachedMTime)
+  {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now - this->LastComputeTime).count();
+
+    if (elapsedMs < this->DebounceInterval)
+    {
+      // Within debounce window and no parameter changes: reuse cached results.
+      contourOutput->ShallowCopy(this->CachedContourOutput);
+      filledOutput->ShallowCopy(this->CachedFilledOutput);
+      return 1;
+    }
+  }
+
   // ── Phase 1: Parallel label collection ──────────────────────────────────
   std::vector<double> labels = this->CollectUniqueLabelsSMP(input);
 
@@ -448,6 +485,24 @@ int vtkImageLabelContourExtractor::RequestData(
   else
   {
     filledOutput->SetNumberOfBlocks(0);
+  }
+
+  // ── Update debounce cache ───────────────────────────────────────────────
+  if (this->EnableDebounce)
+  {
+    if (!this->CachedContourOutput)
+    {
+      this->CachedContourOutput = vtkSmartPointer<vtkMultiBlockDataSet>::New();
+    }
+    if (!this->CachedFilledOutput)
+    {
+      this->CachedFilledOutput = vtkSmartPointer<vtkMultiBlockDataSet>::New();
+    }
+    this->CachedContourOutput->ShallowCopy(contourOutput);
+    this->CachedFilledOutput->ShallowCopy(filledOutput);
+    this->LastComputeTime = std::chrono::steady_clock::now();
+    this->CachedMTime = this->GetMTime();
+    this->HasCachedOutput = true;
   }
 
   return 1;
