@@ -146,6 +146,8 @@ int main(int argc, char* argv[])
   extractor->SetBackgroundValue(0.0);
   extractor->UseBackgroundValueOn();
   extractor->SmoothContoursOff();   // disable smoothing for maximum speed
+  extractor->EnableDebounceOn();    // enable debounce
+  extractor->SetDebounceInterval(200); // 200 ms debounce interval
 
   vtkNew<vtkTimerLog> timer;
   timer->StartTimer();

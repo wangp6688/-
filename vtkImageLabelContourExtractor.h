@@ -4,6 +4,7 @@
 #include <vtkMultiBlockDataSetAlgorithm.h>
 #include <vtkSmartPointer.h>
 
+#include <chrono>
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
@@ -115,6 +116,31 @@ public:
   vtkBooleanMacro(GenerateFilledPolygons, bool);
   ///@}
 
+  ///@{
+  /**
+   * Enable / disable debounce for the computation pipeline.
+   * When enabled, rapid successive calls to Update() within the debounce
+   * interval will reuse cached results from the previous computation instead
+   * of recomputing. This is useful when the filter is driven by interactive
+   * events (e.g., mouse-driven reslicing) that may trigger updates faster
+   * than needed. Default: false.
+   */
+  vtkSetMacro(EnableDebounce, bool);
+  vtkGetMacro(EnableDebounce, bool);
+  vtkBooleanMacro(EnableDebounce, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Debounce interval in milliseconds. When EnableDebounce is true,
+   * RequestData will skip computation and reuse cached outputs if fewer
+   * than DebounceInterval milliseconds have elapsed since the last
+   * successful computation. Clamped to [1, 10000]. Default: 200.
+   */
+  void SetDebounceInterval(int intervalMs);
+  vtkGetMacro(DebounceInterval, int);
+  ///@}
+
 protected:
   vtkImageLabelContourExtractor();
   ~vtkImageLabelContourExtractor() override;
@@ -158,6 +184,20 @@ private:
   bool SmoothContours;
   double SmoothStandardDeviation;
   bool GenerateFilledPolygons;
+  bool EnableDebounce;
+  int DebounceInterval;
+
+  // ── Debounce state ────────────────────────────────────────────────────
+  /** Timestamp of the last successful computation (used for debounce logic). */
+  std::chrono::steady_clock::time_point LastComputeTime;
+  /** Whether cached outputs from a previous computation are available. */
+  bool HasCachedOutput;
+  /** MTime of this filter when the cache was last updated, used to detect parameter changes. */
+  vtkMTimeType CachedMTime;
+  /** Cached contour output from the last successful computation. */
+  vtkSmartPointer<vtkMultiBlockDataSet> CachedContourOutput;
+  /** Cached filled polygon output from the last successful computation. */
+  vtkSmartPointer<vtkMultiBlockDataSet> CachedFilledOutput;
 };
 
 #endif // vtkImageLabelContourExtractor_h
