@@ -194,6 +194,8 @@ private:
   bool HasCachedOutput;
   /** MTime of this filter when the cache was last updated, used to detect parameter changes. */
   vtkMTimeType CachedMTime;
+  /** MTime of the input data when the cache was last updated, used to detect input changes. */
+  vtkMTimeType CachedInputMTime;
   /** Cached contour output from the last successful computation. */
   vtkSmartPointer<vtkMultiBlockDataSet> CachedContourOutput;
   /** Cached filled polygon output from the last successful computation. */
