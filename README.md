@@ -36,7 +36,7 @@ vtkMultiBlockDataSet* output = extractor->GetOutput();
 A `vtkPolyDataAlgorithm` that generates the rotate-handle shape (from
 `rotate_handle.svg`) as a `vtkPolyData` — with **no runtime SVG parsing**.
 
-The 2 SVG paths were tessellated into 177 3-D sample points at code-generation
+The 2 SVG paths were tessellated into 177 2-D sample points at code-generation
 time (cubic Bézier curves subdivided into 32 segments).  The resulting
 coordinate arrays are baked directly into `vtkRotateHandleSource.cxx`.
 

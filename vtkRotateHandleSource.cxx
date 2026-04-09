@@ -30,7 +30,7 @@ static const int ContourPointCounts[ContourCount] = {
 };
 
 // Total: 177 points across 2 contours.
-// Layout: ContourPoints[ContourPointCounts[0] + ContourPointCounts[1] + ...]
+// Layout: first 98 points are contour 0; next 79 points are contour 1.
 static const double ContourPoints[][2] = {
   // contour 0
   { 0.30289200, -0.48648400 },

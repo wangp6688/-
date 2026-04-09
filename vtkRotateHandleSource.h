@@ -41,7 +41,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   ///@{
-  /** World-space centre of the shape. Default: (0, 0, 0). */
+  /** World-space center of the shape. Default: (0, 0, 0). */
   vtkSetVector3Macro(Center, double);
   vtkGetVector3Macro(Center, double);
   ///@}
