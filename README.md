@@ -158,9 +158,11 @@ A Python script parsed `rotate_axis.svg` offline:
 2. The path contained 2 sub-paths (separated by the second `M` command).
 3. Cubic Bézier (`C`) segments were tessellated at 32 equidistant parameter
    steps using de-Casteljau evaluation.
-4. All coordinates were normalised to the range `[-0.5, +0.5]` (centred on the
-   SVG viewBox `0 0 323 16`) and the SVG Y-axis was flipped to match the
-   conventional right-handed +Y-up convention.
+4. All coordinates were centred on the SVG viewBox (`0 0 323 16`) and normalised
+   by `max(width, height) = 323` to preserve the original 323:16 aspect ratio.
+   The X axis spans `[-0.5, +0.5]`; the Y axis spans approximately
+   `[-0.025, +0.025]`.  The SVG Y-axis was flipped to match the conventional
+   right-handed +Y-up convention.
 5. The resulting arrays were written into `vtkCameraRotateAxisSource.cxx`.
 
 
