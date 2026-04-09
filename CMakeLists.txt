@@ -24,10 +24,10 @@ add_library(vtkImageLabelContourExtractor STATIC
   vtkImageLabelContourExtractor.cxx
 )
 
-# ── Library: vtkRotateHandleSource ────────────────────────────────────────────
-add_library(vtkRotateHandleSource STATIC
-  vtkRotateHandleSource.h
-  vtkRotateHandleSource.cxx
+# ── Library: vtkDSARotateHandleSource ────────────────────────────────────────────
+add_library(vtkDSARotateHandleSource STATIC
+  vtkDSARotateHandleSource.h
+  vtkDSARotateHandleSource.cxx
 )
 
 target_include_directories(vtkImageLabelContourExtractor
@@ -43,16 +43,16 @@ vtk_module_autoinit(
   MODULES ${VTK_LIBRARIES}
 )
 
-target_include_directories(vtkRotateHandleSource
+target_include_directories(vtkDSARotateHandleSource
   PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(vtkRotateHandleSource
+target_link_libraries(vtkDSARotateHandleSource
   PUBLIC ${VTK_LIBRARIES}
 )
 
 vtk_module_autoinit(
-  TARGETS vtkRotateHandleSource
+  TARGETS vtkDSARotateHandleSource
   MODULES ${VTK_LIBRARIES}
 )
 
@@ -68,7 +68,7 @@ target_link_libraries(Example
 add_executable(Example_RotateHandle Example_RotateHandle.cxx)
 
 target_link_libraries(Example_RotateHandle
-  PRIVATE vtkRotateHandleSource
+  PRIVATE vtkDSARotateHandleSource
           ${VTK_LIBRARIES}
 )
 

@@ -1,5 +1,5 @@
 /**
- * vtkRotateHandleSource.cxx
+ * vtkDSARotateHandleSource.cxx
  *
  * Geometry baked from rotate_handle.svg (viewBox="0 0 21.0 25.0").
  * The 2 SVG paths were tessellated into 177 sample points
@@ -8,7 +8,7 @@
  * The SVG Y-axis (pointing down) is flipped so that the local +Y axis points up.
  */
 
-#include "vtkRotateHandleSource.h"
+#include "vtkDSARotateHandleSource.h"
 
 #include <vtkCellArray.h>
 #include <vtkInformation.h>
@@ -19,7 +19,7 @@
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
 
-vtkStandardNewMacro(vtkRotateHandleSource);
+vtkStandardNewMacro(vtkDSARotateHandleSource);
 
 // ─── Baked geometry ──────────────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ static const double ContourPoints[][2] = {
 
 // ─── Implementation ───────────────────────────────────────────────────────────
 
-vtkRotateHandleSource::vtkRotateHandleSource()
+vtkDSARotateHandleSource::vtkDSARotateHandleSource()
 {
   this->Center[0] = 0.0; this->Center[1] = 0.0; this->Center[2] = 0.0;
   this->Normal[0] = 0.0; this->Normal[1] = 0.0; this->Normal[2] = 1.0;
@@ -226,7 +226,7 @@ vtkRotateHandleSource::vtkRotateHandleSource()
   this->SetNumberOfInputPorts(0);
 }
 
-void vtkRotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
+void vtkDSARotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Center: (" << Center[0] << ", " << Center[1] << ", " << Center[2] << ")\n";
@@ -237,7 +237,7 @@ void vtkRotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GeneratePolygon: "  << (GeneratePolygon  ? "on" : "off") << "\n";
 }
 
-int vtkRotateHandleSource::RequestData(
+int vtkDSARotateHandleSource::RequestData(
   vtkInformation*,
   vtkInformationVector**,
   vtkInformationVector* outputVector)

@@ -31,14 +31,14 @@ vtkMultiBlockDataSet* output = extractor->GetOutput();
 
 ---
 
-## vtkRotateHandleSource
+## vtkDSARotateHandleSource
 
 A `vtkPolyDataAlgorithm` that generates the rotate-handle shape (from
 `rotate_handle.svg`) as a `vtkPolyData` — with **no runtime SVG parsing**.
 
 The 2 SVG paths were tessellated into 177 2-D sample points at code-generation
 time (cubic Bézier curves subdivided into 32 segments).  The resulting
-coordinate arrays are baked directly into `vtkRotateHandleSource.cxx`.
+coordinate arrays are baked directly into `vtkDSARotateHandleSource.cxx`.
 
 The shape is placed in 3-D space via three parameters:
 
@@ -59,9 +59,9 @@ Two output modes can be toggled independently:
 ### Quick-start
 
 ```cpp
-#include "vtkRotateHandleSource.h"
+#include "vtkDSARotateHandleSource.h"
 
-auto src = vtkSmartPointer<vtkRotateHandleSource>::New();
+auto src = vtkSmartPointer<vtkDSARotateHandleSource>::New();
 src->SetCenter(0.0, 0.0, 0.0);
 src->SetNormal(0.0, 0.0, 1.0);
 src->SetDirection(1.0, 0.0, 0.0);
@@ -72,7 +72,7 @@ vtkPolyData* pd = src->GetOutput();
 
 ### Build
 
-The class is compiled as a static library (`vtkRotateHandleSource`) alongside
+The class is compiled as a static library (`vtkDSARotateHandleSource`) alongside
 `vtkImageLabelContourExtractor` via the provided `CMakeLists.txt`.
 A standalone interactive example is built as `Example_RotateHandle`:
 
@@ -93,7 +93,7 @@ A Python script (`/tmp/gen_vtk_source.py`) parsed `rotate_handle.svg` offline:
 3. All coordinates were normalised to the range `[-0.5, +0.5]` (centred on the
    SVG viewBox) and the SVG Y-axis was flipped to match the conventional
    right-handed +Y-up convention.
-4. The resulting arrays were written into `vtkRotateHandleSource.cxx`.
+4. The resulting arrays were written into `vtkDSARotateHandleSource.cxx`.
 
 
 

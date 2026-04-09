@@ -1,10 +1,10 @@
-#ifndef vtkRotateHandleSource_h
-#define vtkRotateHandleSource_h
+#ifndef vtkDSARotateHandleSource_h
+#define vtkDSARotateHandleSource_h
 
 #include <vtkPolyDataAlgorithm.h>
 
 /**
- * @class vtkRotateHandleSource
+ * @class vtkDSARotateHandleSource
  * @brief Generates the rotate-handle SVG shape as a vtkPolyData.
  *
  * The shape geometry is derived from rotate_handle.svg and baked in as static
@@ -24,7 +24,7 @@
  *
  * Typical usage:
  * @code
- *   auto src = vtkSmartPointer<vtkRotateHandleSource>::New();
+ *   auto src = vtkSmartPointer<vtkDSARotateHandleSource>::New();
  *   src->SetCenter(0.0, 0.0, 0.0);
  *   src->SetNormal(0.0, 0.0, 1.0);
  *   src->SetDirection(1.0, 0.0, 0.0);
@@ -33,11 +33,11 @@
  *   vtkPolyData* pd = src->GetOutput();
  * @endcode
  */
-class vtkRotateHandleSource : public vtkPolyDataAlgorithm
+class vtkDSARotateHandleSource : public vtkPolyDataAlgorithm
 {
 public:
-  static vtkRotateHandleSource* New();
-  vtkTypeMacro(vtkRotateHandleSource, vtkPolyDataAlgorithm);
+  static vtkDSARotateHandleSource* New();
+  vtkTypeMacro(vtkDSARotateHandleSource, vtkPolyDataAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   ///@{
@@ -81,14 +81,14 @@ public:
   ///@}
 
 protected:
-  vtkRotateHandleSource();
-  ~vtkRotateHandleSource() override = default;
+  vtkDSARotateHandleSource();
+  ~vtkDSARotateHandleSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
-  vtkRotateHandleSource(const vtkRotateHandleSource&) = delete;
-  void operator=(const vtkRotateHandleSource&) = delete;
+  vtkDSARotateHandleSource(const vtkDSARotateHandleSource&) = delete;
+  void operator=(const vtkDSARotateHandleSource&) = delete;
 
   double Center[3];
   double Normal[3];
@@ -98,4 +98,4 @@ private:
   bool   GeneratePolygon;
 };
 
-#endif // vtkRotateHandleSource_h
+#endif // vtkDSARotateHandleSource_h
