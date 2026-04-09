@@ -1,7 +1,7 @@
 /**
  * Example_RotateHandle.cxx
  *
- * Demonstrates vtkDSARotateHandleSource.
+ * Demonstrates vtkCameraRotateHandleSource.
  *
  * The source generates the rotate-handle shape (from rotate_handle.svg) as a
  * vtkPolyData placed in 3-D space.  Center, Normal, Direction, and Scale are
@@ -13,7 +13,7 @@
  * Add --no-render to skip the interactive window (useful in CI).
  */
 
-#include "vtkDSARotateHandleSource.h"
+#include "vtkCameraRotateHandleSource.h"
 
 #include <vtkActor.h>
 #include <vtkCamera.h>
@@ -40,17 +40,17 @@ int main(int argc, char* argv[])
   }
 
   // ── 1. Create the shape source ────────────────────────────────────────────
-  vtkNew<vtkDSARotateHandleSource> src;
+  vtkNew<vtkCameraRotateHandleSource> src;
   src->SetCenter(0.0, 0.0, 0.0);    // centred at origin
   src->SetNormal(0.0, 0.0, 1.0);    // shape lies in the XY plane
-  src->SetDirection(1.0, 0.0, 0.0); // SVG +X maps to world +X
+  src->SetDirection(0.0, 1.0, 0.0); // shape "points to" world +Y
   src->SetScale(50.0);               // scale to ~50 units wide
   src->GeneratePolygonOn();
   src->GeneratePolylineOn();
   src->Update();
 
   vtkPolyData* pd = src->GetOutput();
-  std::cout << "vtkDSARotateHandleSource output:\n";
+  std::cout << "vtkCameraRotateHandleSource output:\n";
   std::cout << "  Points : " << pd->GetNumberOfPoints() << "\n";
   std::cout << "  Cells  : " << pd->GetNumberOfCells()  << "\n";
 
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
   vtkNew<vtkRenderWindow> renderWindow;
   renderWindow->AddRenderer(renderer);
   renderWindow->SetSize(800, 800);
-  renderWindow->SetWindowName("vtkDSARotateHandleSource");
+  renderWindow->SetWindowName("vtkCameraRotateHandleSource");
 
   vtkNew<vtkRenderWindowInteractor> interactor;
   interactor->SetRenderWindow(renderWindow);

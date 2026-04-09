@@ -1,10 +1,10 @@
-#ifndef vtkDSARotateHandleSource_h
-#define vtkDSARotateHandleSource_h
+#ifndef vtkCameraRotateHandleSource_h
+#define vtkCameraRotateHandleSource_h
 
 #include <vtkPolyDataAlgorithm.h>
 
 /**
- * @class vtkDSARotateHandleSource
+ * @class vtkCameraRotateHandleSource
  * @brief Generates the rotate-handle SVG shape as a vtkPolyData.
  *
  * The shape geometry is derived from rotate_handle.svg and baked in as static
@@ -13,8 +13,9 @@
  * The 2-D outline is placed in 3-D space using three user-settable parameters:
  *   - Center    – origin of the shape in world space.
  *   - Normal    – normal of the plane in which the shape lies.
- *   - Direction – in-plane direction that maps to the local +X axis of the SVG
- *                 (automatically projected onto the Normal plane).
+ *   - Direction – in-plane direction that the shape "points to" (maps to
+ *                 the local +Y axis of the SVG, i.e. the shape's primary /
+ *                 tall axis; automatically projected onto the Normal plane).
  *
  * An optional Scale factor uniformly scales the shape around Center.
  *
@@ -24,20 +25,20 @@
  *
  * Typical usage:
  * @code
- *   auto src = vtkSmartPointer<vtkDSARotateHandleSource>::New();
+ *   auto src = vtkSmartPointer<vtkCameraRotateHandleSource>::New();
  *   src->SetCenter(0.0, 0.0, 0.0);
  *   src->SetNormal(0.0, 0.0, 1.0);
- *   src->SetDirection(1.0, 0.0, 0.0);
+ *   src->SetDirection(0.0, 1.0, 0.0);
  *   src->SetScale(50.0);
  *   src->Update();
  *   vtkPolyData* pd = src->GetOutput();
  * @endcode
  */
-class vtkDSARotateHandleSource : public vtkPolyDataAlgorithm
+class vtkCameraRotateHandleSource : public vtkPolyDataAlgorithm
 {
 public:
-  static vtkDSARotateHandleSource* New();
-  vtkTypeMacro(vtkDSARotateHandleSource, vtkPolyDataAlgorithm);
+  static vtkCameraRotateHandleSource* New();
+  vtkTypeMacro(vtkCameraRotateHandleSource, vtkPolyDataAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   ///@{
@@ -53,9 +54,10 @@ public:
   ///@}
 
   ///@{
-  /** In-plane direction mapped to the local +X axis of the SVG.
+  /** In-plane direction that the shape "points to" (mapped to the local +Y
+   *  axis of the SVG, i.e. the shape's primary / tall axis).
    *  It is automatically projected onto the Normal plane.
-   *  Default: (1, 0, 0). */
+   *  Default: (0, 1, 0). */
   vtkSetVector3Macro(Direction, double);
   vtkGetVector3Macro(Direction, double);
   ///@}
@@ -81,14 +83,14 @@ public:
   ///@}
 
 protected:
-  vtkDSARotateHandleSource();
-  ~vtkDSARotateHandleSource() override = default;
+  vtkCameraRotateHandleSource();
+  ~vtkCameraRotateHandleSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
-  vtkDSARotateHandleSource(const vtkDSARotateHandleSource&) = delete;
-  void operator=(const vtkDSARotateHandleSource&) = delete;
+  vtkCameraRotateHandleSource(const vtkCameraRotateHandleSource&) = delete;
+  void operator=(const vtkCameraRotateHandleSource&) = delete;
 
   double Center[3];
   double Normal[3];
@@ -98,4 +100,4 @@ private:
   bool   GeneratePolygon;
 };
 
-#endif // vtkDSARotateHandleSource_h
+#endif // vtkCameraRotateHandleSource_h

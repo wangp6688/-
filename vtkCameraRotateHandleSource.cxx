@@ -1,5 +1,5 @@
 /**
- * vtkDSARotateHandleSource.cxx
+ * vtkCameraRotateHandleSource.cxx
  *
  * Geometry baked from rotate_handle.svg (viewBox="0 0 21.0 25.0").
  * The 2 SVG paths were tessellated into 177 sample points
@@ -8,7 +8,7 @@
  * The SVG Y-axis (pointing down) is flipped so that the local +Y axis points up.
  */
 
-#include "vtkDSARotateHandleSource.h"
+#include "vtkCameraRotateHandleSource.h"
 
 #include <vtkCellArray.h>
 #include <vtkInformation.h>
@@ -18,8 +18,9 @@
 #include <vtkObjectFactory.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
+#include <vtkTriangleFilter.h>
 
-vtkStandardNewMacro(vtkDSARotateHandleSource);
+vtkStandardNewMacro(vtkCameraRotateHandleSource);
 
 // ─── Baked geometry ──────────────────────────────────────────────────────────
 
@@ -215,18 +216,18 @@ static const double ContourPoints[][2] = {
 
 // ─── Implementation ───────────────────────────────────────────────────────────
 
-vtkDSARotateHandleSource::vtkDSARotateHandleSource()
+vtkCameraRotateHandleSource::vtkCameraRotateHandleSource()
 {
   this->Center[0] = 0.0; this->Center[1] = 0.0; this->Center[2] = 0.0;
   this->Normal[0] = 0.0; this->Normal[1] = 0.0; this->Normal[2] = 1.0;
-  this->Direction[0] = 1.0; this->Direction[1] = 0.0; this->Direction[2] = 0.0;
+  this->Direction[0] = 0.0; this->Direction[1] = 1.0; this->Direction[2] = 0.0;
   this->Scale          = 1.0;
   this->GeneratePolyline = true;
   this->GeneratePolygon  = true;
   this->SetNumberOfInputPorts(0);
 }
 
-void vtkDSARotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
+void vtkCameraRotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Center: (" << Center[0] << ", " << Center[1] << ", " << Center[2] << ")\n";
@@ -237,7 +238,7 @@ void vtkDSARotateHandleSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GeneratePolygon: "  << (GeneratePolygon  ? "on" : "off") << "\n";
 }
 
-int vtkDSARotateHandleSource::RequestData(
+int vtkCameraRotateHandleSource::RequestData(
   vtkInformation*,
   vtkInformationVector**,
   vtkInformationVector* outputVector)
@@ -246,8 +247,9 @@ int vtkDSARotateHandleSource::RequestData(
 
   // ── Build a local orthonormal frame ──────────────────────────────────────
   // nrm = normalised Normal
-  // ax  = in-plane X axis (Direction projected onto the normal plane, normalised)
-  // ay  = nrm × ax  (in-plane Y axis)
+  // ay  = in-plane Y axis (Direction projected onto the normal plane, normalised)
+  //        — this is the direction the shape "points to"
+  // ax  = ay × nrm  (in-plane X axis, perpendicular to ay)
 
   double nrm[3] = { Normal[0], Normal[1], Normal[2] };
   double len = vtkMath::Normalize(nrm);
@@ -269,10 +271,10 @@ int vtkDSARotateHandleSource::RequestData(
     vtkErrorMacro("Direction vector is parallel to Normal or has zero length.");
     return 0;
   }
-  double ax[3] = { d[0], d[1], d[2] };
+  double ay[3] = { d[0], d[1], d[2] };
 
-  double ay[3];
-  vtkMath::Cross(nrm, ax, ay);  // ay = nrm × ax
+  double ax[3];
+  vtkMath::Cross(ay, nrm, ax);  // ax = ay × nrm
 
   // ── Allocate output ───────────────────────────────────────────────────────
   int totalPts = 0;
@@ -322,11 +324,31 @@ int vtkDSARotateHandleSource::RequestData(
     offset += n_pts;
   }
 
-  output->SetPoints(pts);
+  // ── Triangulate concave polygons for correct rendering ─────────────────
+  // VTK's default OpenGL tessellator can fail on complex concave polygons.
+  // We use vtkTriangleFilter (ear-clipping) to produce proper triangles.
   if (GeneratePolygon)
-    output->SetPolys(polys);
-  if (GeneratePolyline)
-    output->SetLines(lines);
+  {
+    vtkNew<vtkPolyData> tempPd;
+    tempPd->SetPoints(pts);
+    tempPd->SetPolys(polys);
+    if (GeneratePolyline)
+      tempPd->SetLines(lines);
+
+    vtkNew<vtkTriangleFilter> triFilter;
+    triFilter->SetInputData(tempPd);
+    triFilter->PassVertsOff();
+    triFilter->PassLinesOn();
+    triFilter->Update();
+
+    output->ShallowCopy(triFilter->GetOutput());
+  }
+  else
+  {
+    output->SetPoints(pts);
+    if (GeneratePolyline)
+      output->SetLines(lines);
+  }
 
   return 1;
 }
