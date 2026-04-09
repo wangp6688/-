@@ -327,20 +327,28 @@ int vtkDSARotateHandleSource::RequestData(
   // ── Triangulate concave polygons for correct rendering ─────────────────
   // VTK's default OpenGL tessellator can fail on complex concave polygons.
   // We use vtkTriangleFilter (ear-clipping) to produce proper triangles.
-  vtkNew<vtkPolyData> tempPd;
-  tempPd->SetPoints(pts);
   if (GeneratePolygon)
+  {
+    vtkNew<vtkPolyData> tempPd;
+    tempPd->SetPoints(pts);
     tempPd->SetPolys(polys);
-  if (GeneratePolyline)
-    tempPd->SetLines(lines);
+    if (GeneratePolyline)
+      tempPd->SetLines(lines);
 
-  vtkNew<vtkTriangleFilter> triFilter;
-  triFilter->SetInputData(tempPd);
-  triFilter->PassVertsOff();
-  triFilter->PassLinesOn();
-  triFilter->Update();
+    vtkNew<vtkTriangleFilter> triFilter;
+    triFilter->SetInputData(tempPd);
+    triFilter->PassVertsOff();
+    triFilter->PassLinesOn();
+    triFilter->Update();
 
-  output->ShallowCopy(triFilter->GetOutput());
+    output->ShallowCopy(triFilter->GetOutput());
+  }
+  else
+  {
+    output->SetPoints(pts);
+    if (GeneratePolyline)
+      output->SetLines(lines);
+  }
 
   return 1;
 }
