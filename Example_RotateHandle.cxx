@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
   vtkNew<vtkDSARotateHandleSource> src;
   src->SetCenter(0.0, 0.0, 0.0);    // centred at origin
   src->SetNormal(0.0, 0.0, 1.0);    // shape lies in the XY plane
-  src->SetDirection(1.0, 0.0, 0.0); // SVG +X maps to world +X
+  src->SetDirection(0.0, 1.0, 0.0); // shape "points to" world +Y
   src->SetScale(50.0);               // scale to ~50 units wide
   src->GeneratePolygonOn();
   src->GeneratePolylineOn();

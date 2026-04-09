@@ -13,8 +13,9 @@
  * The 2-D outline is placed in 3-D space using three user-settable parameters:
  *   - Center    – origin of the shape in world space.
  *   - Normal    – normal of the plane in which the shape lies.
- *   - Direction – in-plane direction that maps to the local +X axis of the SVG
- *                 (automatically projected onto the Normal plane).
+ *   - Direction – in-plane direction that the shape "points to" (maps to
+ *                 the local +Y axis of the SVG, i.e. the shape's primary /
+ *                 tall axis; automatically projected onto the Normal plane).
  *
  * An optional Scale factor uniformly scales the shape around Center.
  *
@@ -27,7 +28,7 @@
  *   auto src = vtkSmartPointer<vtkDSARotateHandleSource>::New();
  *   src->SetCenter(0.0, 0.0, 0.0);
  *   src->SetNormal(0.0, 0.0, 1.0);
- *   src->SetDirection(1.0, 0.0, 0.0);
+ *   src->SetDirection(0.0, 1.0, 0.0);
  *   src->SetScale(50.0);
  *   src->Update();
  *   vtkPolyData* pd = src->GetOutput();
@@ -53,9 +54,10 @@ public:
   ///@}
 
   ///@{
-  /** In-plane direction mapped to the local +X axis of the SVG.
+  /** In-plane direction that the shape "points to" (mapped to the local +Y
+   *  axis of the SVG, i.e. the shape's primary / tall axis).
    *  It is automatically projected onto the Normal plane.
-   *  Default: (1, 0, 0). */
+   *  Default: (0, 1, 0). */
   vtkSetVector3Macro(Direction, double);
   vtkGetVector3Macro(Direction, double);
   ///@}
