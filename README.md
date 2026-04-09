@@ -31,7 +31,71 @@ vtkMultiBlockDataSet* output = extractor->GetOutput();
 
 ---
 
-## CurveVectorTransport
+## vtkDSARotateHandleSource
+
+A `vtkPolyDataAlgorithm` that generates the rotate-handle shape (from
+`rotate_handle.svg`) as a `vtkPolyData` — with **no runtime SVG parsing**.
+
+The 2 SVG paths were tessellated into 177 2-D sample points at code-generation
+time (cubic Bézier curves subdivided into 32 segments).  The resulting
+coordinate arrays are baked directly into `vtkDSARotateHandleSource.cxx`.
+
+The shape is placed in 3-D space via three parameters:
+
+| Parameter   | Default      | Description |
+|-------------|--------------|-------------|
+| `Center`    | (0, 0, 0)    | World-space origin of the shape. |
+| `Normal`    | (0, 0, 1)    | Normal of the plane the shape lies in. |
+| `Direction` | (1, 0, 0)    | In-plane direction mapped to the SVG +X axis (projected onto the Normal plane automatically). |
+| `Scale`     | 1.0          | Uniform scale applied to all shape coordinates. |
+
+Two output modes can be toggled independently:
+
+| Mode              | Default | Description |
+|-------------------|---------|-------------|
+| `GeneratePolyline`| on      | Closed polyline cells (outline). |
+| `GeneratePolygon` | on      | Filled polygon cells. |
+
+### Quick-start
+
+```cpp
+#include "vtkDSARotateHandleSource.h"
+
+auto src = vtkSmartPointer<vtkDSARotateHandleSource>::New();
+src->SetCenter(0.0, 0.0, 0.0);
+src->SetNormal(0.0, 0.0, 1.0);
+src->SetDirection(1.0, 0.0, 0.0);
+src->SetScale(50.0);
+src->Update();
+vtkPolyData* pd = src->GetOutput();
+```
+
+### Build
+
+The class is compiled as a static library (`vtkDSARotateHandleSource`) alongside
+`vtkImageLabelContourExtractor` via the provided `CMakeLists.txt`.
+A standalone interactive example is built as `Example_RotateHandle`:
+
+```bash
+mkdir build && cd build
+cmake ..
+make
+./Example_RotateHandle
+```
+
+### How the geometry was generated
+
+A Python script (`/tmp/gen_vtk_source.py`) parsed `rotate_handle.svg` offline:
+
+1. Each SVG `<path d="...">` was tokenised into M / L / C / Z commands.
+2. Cubic Bézier (`C`) segments were tessellated at 32 equidistant parameter
+   steps using de-Casteljau evaluation.
+3. All coordinates were normalised to the range `[-0.5, +0.5]` (centred on the
+   SVG viewBox) and the SVG Y-axis was flipped to match the conventional
+   right-handed +Y-up convention.
+4. The resulting arrays were written into `vtkDSARotateHandleSource.cxx`.
+
+
 
 Header-only utility (`CurveVectorTransport.h`) that **parallel-transports a set
 of direction vectors along a discrete 3-D curve** (Bishop-frame / rotation-minimising
