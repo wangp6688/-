@@ -30,6 +30,12 @@ add_library(vtkCameraRotateHandleSource STATIC
   vtkCameraRotateHandleSource.cxx
 )
 
+# ── Library: vtkCameraRotateAxisSource ──────────────────────────────────────────────
+add_library(vtkCameraRotateAxisSource STATIC
+  vtkCameraRotateAxisSource.h
+  vtkCameraRotateAxisSource.cxx
+)
+
 target_include_directories(vtkImageLabelContourExtractor
   PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -56,6 +62,19 @@ vtk_module_autoinit(
   MODULES ${VTK_LIBRARIES}
 )
 
+target_include_directories(vtkCameraRotateAxisSource
+  PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(vtkCameraRotateAxisSource
+  PUBLIC ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS vtkCameraRotateAxisSource
+  MODULES ${VTK_LIBRARIES}
+)
+
 # ── Example executable ────────────────────────────────────────────────────────
 add_executable(Example Example_Usage.cxx)
 
@@ -79,5 +98,18 @@ vtk_module_autoinit(
 
 vtk_module_autoinit(
   TARGETS Example_RotateHandle
+  MODULES ${VTK_LIBRARIES}
+)
+
+# ── RotateAxis example executable ───────────────────────────────────────────
+add_executable(Example_RotateAxis Example_RotateAxis.cxx)
+
+target_link_libraries(Example_RotateAxis
+  PRIVATE vtkCameraRotateAxisSource
+          ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS Example_RotateAxis
   MODULES ${VTK_LIBRARIES}
 )
