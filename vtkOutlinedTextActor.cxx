@@ -8,6 +8,12 @@
 
 vtkStandardNewMacro(vtkOutlinedTextActor);
 
+namespace
+{
+constexpr int BorderOffsets[8][2] = { { -1, 0 }, { 1, 0 }, { 0, 1 }, { 0, -1 },
+                                      { -1, 1 }, { 1, 1 }, { -1, -1 }, { 1, -1 } };
+}
+
 vtkOutlinedTextActor::vtkOutlinedTextActor()
   : OutlineOpacity(0.85)
   , OutlineOffset(1)
@@ -66,13 +72,10 @@ void vtkOutlinedTextActor::SyncOutlinePositions(vtkViewport* viewport)
   const int displayY = displayPosition[1];
   const int offset = this->OutlineOffset;
 
-  static const int offsets[8][2] = { { -1, 0 }, { 1, 0 }, { 0, 1 }, { 0, -1 },
-                                     { -1, 1 }, { 1, 1 }, { -1, -1 }, { 1, -1 } };
-
   for (int i = 0; i < 8; ++i)
   {
-    this->BorderActors[i]->SetPosition(displayX + offsets[i][0] * offset,
-                                       displayY + offsets[i][1] * offset);
+    this->BorderActors[i]->SetPosition(displayX + BorderOffsets[i][0] * offset,
+                                       displayY + BorderOffsets[i][1] * offset);
   }
 }
 
