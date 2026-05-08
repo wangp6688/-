@@ -10,14 +10,14 @@ vtkStandardNewMacro(vtkOutlinedTextActor);
 
 namespace
 {
-constexpr double DefaultOutlineOpacity = 0.85;
+constexpr double kDefaultOutlineOpacity = 0.85;
 // 8-direction offsets: left/right/up/down + 4 diagonals.
-constexpr int BorderOffsets[8][2] = { { -1, 0 }, { 1, 0 }, { 0, 1 }, { 0, -1 },
-                                      { -1, 1 }, { 1, 1 }, { -1, -1 }, { 1, -1 } };
+constexpr int OutlineOffsets[8][2] = { { -1, 0 }, { 1, 0 }, { 0, 1 }, { 0, -1 },
+                                       { -1, 1 }, { 1, 1 }, { -1, -1 }, { 1, -1 } };
 }
 
 vtkOutlinedTextActor::vtkOutlinedTextActor()
-  : OutlineOpacity(DefaultOutlineOpacity)
+  : OutlineOpacity(kDefaultOutlineOpacity)
   , OutlineOffset(1)
   , OutlineVisibility(true)
 {
@@ -76,8 +76,8 @@ void vtkOutlinedTextActor::SyncOutlinePositions(vtkViewport* viewport)
 
   for (int i = 0; i < 8; ++i)
   {
-    this->BorderActors[i]->SetPosition(displayX + BorderOffsets[i][0] * offset,
-                                       displayY + BorderOffsets[i][1] * offset);
+    this->BorderActors[i]->SetPosition(displayX + OutlineOffsets[i][0] * offset,
+                                       displayY + OutlineOffsets[i][1] * offset);
   }
 }
 
