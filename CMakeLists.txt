@@ -36,6 +36,11 @@ add_library(vtkCameraRotateAxisSource STATIC
   vtkCameraRotateAxisSource.cxx
 )
 
+add_library(vtkOutlinedTextActor STATIC
+  vtkOutlinedTextActor.h
+  vtkOutlinedTextActor.cxx
+)
+
 target_include_directories(vtkImageLabelContourExtractor
   PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -70,8 +75,21 @@ target_link_libraries(vtkCameraRotateAxisSource
   PUBLIC ${VTK_LIBRARIES}
 )
 
+target_include_directories(vtkOutlinedTextActor
+  PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(vtkOutlinedTextActor
+  PUBLIC ${VTK_LIBRARIES}
+)
+
 vtk_module_autoinit(
   TARGETS vtkCameraRotateAxisSource
+  MODULES ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS vtkOutlinedTextActor
   MODULES ${VTK_LIBRARIES}
 )
 
