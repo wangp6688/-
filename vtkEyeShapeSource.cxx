@@ -21,7 +21,7 @@
 #include <vtkObjectFactory.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
-#include <vtkContourTriangulator.h>
+#include <vtkTriangleFilter.h>
 
 vtkStandardNewMacro(vtkEyeShapeSource);
 
@@ -496,6 +496,7 @@ int vtkEyeShapeSource::RequestData(
   pts->SetDataTypeToDouble();
   pts->Allocate(totalPts);
 
+  vtkNew<vtkCellArray> polys;
   vtkNew<vtkCellArray> lines;
 
   // ── Insert points and cells per contour ──────────────────────────────────
@@ -515,33 +516,43 @@ int vtkEyeShapeSource::RequestData(
         Center[2] + u * ax[2] + v * ay[2]);
     }
 
-    // Closed polyline: n_pts vertices + 1 to close back to the first point.
-    // Always build this contour topology because polygon triangulation uses it.
-    lines->InsertNextCell(n_pts + 1);
-    for (int pi = 0; pi < n_pts; ++pi)
-      lines->InsertCellPoint(startId + pi);
-    lines->InsertCellPoint(startId);  // close
+    if (GeneratePolygon)
+    {
+      polys->InsertNextCell(n_pts);
+      for (int pi = 0; pi < n_pts; ++pi)
+        polys->InsertCellPoint(startId + pi);
+    }
+
+    if (GeneratePolyline)
+    {
+      // Closed polyline: n_pts vertices + 1 to close back to the first point
+      lines->InsertNextCell(n_pts + 1);
+      for (int pi = 0; pi < n_pts; ++pi)
+        lines->InsertCellPoint(startId + pi);
+      lines->InsertCellPoint(startId);  // close
+    }
 
     offset += n_pts;
   }
 
-  // ── Triangulate contour set (supports holes) ──────────────────────────────
-  // eye.svg has an inner contour (pupil) that must become a geometric hole.
-  // vtkContourTriangulator triangulates closed polylines with proper hole
-  // handling when ring winding is opposite (which our baked contours satisfy).
+  // ── Triangulate concave polygons for correct rendering ─────────────────
+  // VTK's default OpenGL tessellator can fail on complex concave polygons.
+  // We use vtkTriangleFilter (ear-clipping) to produce proper triangles.
   if (GeneratePolygon)
   {
-    vtkNew<vtkPolyData> contourPd;
-    contourPd->SetPoints(pts);
-    contourPd->SetLines(lines);
+    vtkNew<vtkPolyData> tempPd;
+    tempPd->SetPoints(pts);
+    tempPd->SetPolys(polys);
+    if (GeneratePolyline)
+      tempPd->SetLines(lines);
 
-    vtkNew<vtkContourTriangulator> triangulator;
-    triangulator->SetInputData(contourPd);
-    triangulator->Update();
+    vtkNew<vtkTriangleFilter> triFilter;
+    triFilter->SetInputData(tempPd);
+    triFilter->PassVertsOff();
+    triFilter->PassLinesOn();
+    triFilter->Update();
 
-    output->ShallowCopy(triangulator->GetOutput());
-    if (!GeneratePolyline)
-      output->SetLines(nullptr);
+    output->ShallowCopy(triFilter->GetOutput());
   }
   else
   {
