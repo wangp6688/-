@@ -36,6 +36,12 @@ add_library(vtkCameraRotateAxisSource STATIC
   vtkCameraRotateAxisSource.cxx
 )
 
+# ── Library: vtkEyeShapeSource ──────────────────────────────────────────────────────
+add_library(vtkEyeShapeSource STATIC
+  vtkEyeShapeSource.h
+  vtkEyeShapeSource.cxx
+)
+
 add_library(vtkOutlinedTextActor STATIC
   vtkOutlinedTextActor.h
   vtkOutlinedTextActor.cxx
@@ -73,6 +79,19 @@ target_include_directories(vtkCameraRotateAxisSource
 
 target_link_libraries(vtkCameraRotateAxisSource
   PUBLIC ${VTK_LIBRARIES}
+)
+
+target_include_directories(vtkEyeShapeSource
+  PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(vtkEyeShapeSource
+  PUBLIC ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS vtkEyeShapeSource
+  MODULES ${VTK_LIBRARIES}
 )
 
 target_include_directories(vtkOutlinedTextActor
