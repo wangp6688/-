@@ -21,6 +21,7 @@ HoverSpinBox::HoverSpinBox(AngleType type, QWidget *parent)
     // 只允许整数角度
     setDecimals(0);
     setSingleStep(1.0);
+    setSuffix(QStringLiteral("°"));
     setButtonSymbols(QAbstractSpinBox::NoButtons);
 
     applyRangeForType();
@@ -67,7 +68,7 @@ void HoverSpinBox::leaveEvent(QEvent *event)
 
 QString HoverSpinBox::textFromValue(double value) const
 {
-    return QString::number(static_cast<int>(std::abs(value))) + QChar(0xB0); // °
+    return QString::number(static_cast<int>(std::abs(value)));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,10 +77,11 @@ QString HoverSpinBox::textFromValue(double value) const
 
 double HoverSpinBox::valueFromText(const QString &text) const
 {
-    // 去除 "°" 后缀及首尾空白
+    // 去除后缀及首尾空白
     QString t = text.trimmed();
-    if (t.endsWith(QChar(0xB0)))
-        t.chop(1);
+    const QString sfx = suffix();
+    if (!sfx.isEmpty() && t.endsWith(sfx))
+        t.chop(sfx.size());
     t = t.trimmed();
 
     bool ok = false;
@@ -113,10 +115,11 @@ QValidator::State HoverSpinBox::validate(QString &text, int &pos) const
 {
     Q_UNUSED(pos)
 
-    // 去除 "°" 后缀
+    // 去除后缀
     QString t = text.trimmed();
-    if (t.endsWith(QChar(0xB0)))
-        t.chop(1);
+    const QString sfx = suffix();
+    if (!sfx.isEmpty() && t.endsWith(sfx))
+        t.chop(sfx.size());
     t = t.trimmed();
 
     // 空串或仅有负号视为中间状态（用户还在输入）
