@@ -42,7 +42,7 @@ public:
      * @param type   角度类型
      * @param parent 父窗口部件
      */
-    HoverSpinBox(AngleType type, QWidget *parent);
+    HoverSpinBox(AngleType type, QWidget *parent = nullptr);
 
     /** @brief 设置角度类型，同时更新内部范围 */
     void setAngleType(AngleType type);
