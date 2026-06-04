@@ -16,6 +16,7 @@ HoverSpinBox::HoverSpinBox(AngleType type, QWidget *parent)
     // 只允许整数角度
     setDecimals(0);
     setSingleStep(1.0);
+    setButtonSymbols(QAbstractSpinBox::NoButtons);
 
     applyRangeForType();
 }
@@ -35,6 +36,24 @@ void HoverSpinBox::applyRangeForType()
         setRange(-180.0, 180.0);
     else
         setRange(-90.0, 90.0);
+}
+
+void HoverSpinBox::enterEvent(QEvent *event)
+{
+    if (!isEnabled())
+        return;
+
+    setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+    QDoubleSpinBox::enterEvent(event);
+}
+
+void HoverSpinBox::leaveEvent(QEvent *event)
+{
+    if (!isEnabled())
+        return;
+
+    setButtonSymbols(QAbstractSpinBox::NoButtons);
+    QDoubleSpinBox::leaveEvent(event);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

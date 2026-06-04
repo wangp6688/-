@@ -2,6 +2,8 @@
 
 #include <QDoubleSpinBox>
 
+class QEvent;
+
 /**
  * @brief HoverSpinBox — 角度输入框
  *
@@ -44,6 +46,12 @@ public:
     AngleType angleType() const { return m_angleType; }
 
 protected:
+    /** 鼠标进入时显示上下箭头按钮（禁用时不处理） */
+    void enterEvent(QEvent *event) override;
+
+    /** 鼠标离开时隐藏上下箭头按钮（禁用时不处理） */
+    void leaveEvent(QEvent *event) override;
+
     /**
      * @brief 将内部值转为显示文本
      *
