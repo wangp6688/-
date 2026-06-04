@@ -60,7 +60,8 @@ protected:
     /**
      * @brief 将内部值转为显示文本
      *
-     * 显示绝对值 + "°"，例如 -30 -> "30°"
+     * 返回绝对值数字文本（不含后缀），例如 -30 -> "30"；
+     * "°" 由 QDoubleSpinBox 的 suffix 机制追加。
      */
     QString textFromValue(double value) const override;
 
