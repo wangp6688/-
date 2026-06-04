@@ -137,7 +137,12 @@ QValidator::State HoverSpinBox::validate(QString &text, int &pos) const
     if (!ok)
         return QValidator::Invalid;
 
-    if (val >= minimum() && val <= maximum())
+    const int currentSign = (value() >= 0.0) ? 1 : -1;
+    const double absInput = std::abs(val);
+    const double interpreted =
+        (val >= 0.0) ? (currentSign * absInput) : (-currentSign * absInput);
+
+    if (interpreted >= minimum() && interpreted <= maximum())
         return QValidator::Acceptable;
 
     // 超出范围但格式合法 -> Intermediate（由 fixup/base 处理）
