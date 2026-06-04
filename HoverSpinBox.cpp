@@ -145,8 +145,8 @@ QValidator::State HoverSpinBox::validate(QString &text, int &pos) const
     if (interpreted >= minimum() && interpreted <= maximum())
         return QValidator::Acceptable;
 
-    // 超出范围但格式合法 -> Intermediate（由 fixup/base 处理）
-    return QValidator::Intermediate;
+    // 格式合法但超出范围 -> Invalid（禁止输入越界值）
+    return QValidator::Invalid;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

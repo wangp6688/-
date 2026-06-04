@@ -78,7 +78,7 @@ protected:
      * @brief 验证输入文本的合法性
      *
      * 接受格式：[-]digits[°]
-     * 超出范围的数值返回 Intermediate，由 QDoubleSpinBox 默认机制处理。
+     * 超出范围的数值返回 Invalid，禁止输入越界值。
      */
     QValidator::State validate(QString &text, int &pos) const override;
 
