@@ -32,12 +32,17 @@ public:
     };
 
     /**
-     * @brief 构造函数
-     * @param type   角度类型（默认 Horizontal）
+     * @brief 默认构造函数（默认 Horizontal）
      * @param parent 父窗口部件
      */
-    explicit HoverSpinBox(AngleType type = AngleType::Horizontal,
-                          QWidget *parent = nullptr);
+    explicit HoverSpinBox(QWidget *parent = nullptr);
+
+    /**
+     * @brief 指定角度类型的构造函数
+     * @param type   角度类型
+     * @param parent 父窗口部件
+     */
+    HoverSpinBox(AngleType type, QWidget *parent);
 
     /** @brief 设置角度类型，同时更新内部范围 */
     void setAngleType(AngleType type);

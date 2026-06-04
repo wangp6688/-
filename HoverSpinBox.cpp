@@ -9,6 +9,11 @@
 // 构造 / 配置
 // ─────────────────────────────────────────────────────────────────────────────
 
+HoverSpinBox::HoverSpinBox(QWidget *parent)
+    : HoverSpinBox(AngleType::Horizontal, parent)
+{
+}
+
 HoverSpinBox::HoverSpinBox(AngleType type, QWidget *parent)
     : QDoubleSpinBox(parent)
     , m_angleType(type)
