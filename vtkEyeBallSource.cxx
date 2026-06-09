@@ -2,7 +2,7 @@
  * vtkEyeBallSource.cxx
  *
  * Geometry baked from EyeBall.svg (viewBox="0 0 32 32").
- * The SVG path contains 2 closed contours (outer eye-ball and inner hole).
+ * The SVG path contains 2 closed contours (outer eyeball and inner hole).
  * Cubic Bezier segments are subdivided into 32 samples at code-generation time.
  * Coordinates are centred at (16, 16), normalised by max(width, height)=32,
  * and Y is flipped to map SVG +Y-down into local +Y-up.
@@ -296,9 +296,15 @@ static const double ContourPoints[][2] = {
 
 vtkEyeBallSource::vtkEyeBallSource()
 {
-  this->Center[0] = 0.0; this->Center[1] = 0.0; this->Center[2] = 0.0;
-  this->Normal[0] = 0.0; this->Normal[1] = 0.0; this->Normal[2] = 1.0;
-  this->Direction[0] = 0.0; this->Direction[1] = 1.0; this->Direction[2] = 0.0;
+  this->Center[0] = 0.0;
+  this->Center[1] = 0.0;
+  this->Center[2] = 0.0;
+  this->Normal[0] = 0.0;
+  this->Normal[1] = 0.0;
+  this->Normal[2] = 1.0;
+  this->Direction[0] = 0.0;
+  this->Direction[1] = 1.0;
+  this->Direction[2] = 0.0;
   this->Scale = 1.0;
   this->GeneratePolyline = true;
   this->GeneratePolygon = true;

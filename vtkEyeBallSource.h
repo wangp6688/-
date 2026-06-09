@@ -5,7 +5,7 @@
 
 /**
  * @class vtkEyeBallSource
- * @brief Generates the eye-ball SVG shape as vtkPolyData.
+ * @brief Generates the eyeball SVG shape as vtkPolyData.
  *
  * Geometry is baked from EyeBall.svg at code-generation time.
  * No runtime SVG parsing is performed.
