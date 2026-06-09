@@ -308,12 +308,12 @@ vtkEyeBallSource::vtkEyeBallSource()
 void vtkEyeBallSource::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "Center: (" << Center[0] << ", " << Center[1] << ", " << Center[2] << ")\n";
-  os << indent << "Normal: (" << Normal[0] << ", " << Normal[1] << ", " << Normal[2] << ")\n";
-  os << indent << "Direction: (" << Direction[0] << ", " << Direction[1] << ", " << Direction[2] << ")\n";
-  os << indent << "Scale: " << Scale << "\n";
-  os << indent << "GeneratePolyline: " << (GeneratePolyline ? "on" : "off") << "\n";
-  os << indent << "GeneratePolygon: " << (GeneratePolygon ? "on" : "off") << "\n";
+  os << indent << "Center: (" << this->Center[0] << ", " << this->Center[1] << ", " << this->Center[2] << ")\n";
+  os << indent << "Normal: (" << this->Normal[0] << ", " << this->Normal[1] << ", " << this->Normal[2] << ")\n";
+  os << indent << "Direction: (" << this->Direction[0] << ", " << this->Direction[1] << ", " << this->Direction[2] << ")\n";
+  os << indent << "Scale: " << this->Scale << "\n";
+  os << indent << "GeneratePolyline: " << (this->GeneratePolyline ? "on" : "off") << "\n";
+  os << indent << "GeneratePolygon: " << (this->GeneratePolygon ? "on" : "off") << "\n";
 }
 
 int vtkEyeBallSource::RequestData(
@@ -323,7 +323,7 @@ int vtkEyeBallSource::RequestData(
 {
   vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
 
-  double nrm[3] = { Normal[0], Normal[1], Normal[2] };
+  double nrm[3] = { this->Normal[0], this->Normal[1], this->Normal[2] };
   double len = vtkMath::Normalize(nrm);
   if (len < 1e-15)
   {
@@ -331,7 +331,7 @@ int vtkEyeBallSource::RequestData(
     return 0;
   }
 
-  double d[3] = { Direction[0], Direction[1], Direction[2] };
+  double d[3] = { this->Direction[0], this->Direction[1], this->Direction[2] };
   const double dot = vtkMath::Dot(d, nrm);
   d[0] -= dot * nrm[0];
   d[1] -= dot * nrm[1];
@@ -368,15 +368,15 @@ int vtkEyeBallSource::RequestData(
 
     for (int pi = 0; pi < nPts; ++pi)
     {
-      const double u = ContourPoints[offset + pi][0] * Scale;
-      const double v = ContourPoints[offset + pi][1] * Scale;
+      const double u = ContourPoints[offset + pi][0] * this->Scale;
+      const double v = ContourPoints[offset + pi][1] * this->Scale;
       pts->InsertNextPoint(
-        Center[0] + u * ax[0] + v * ay[0],
-        Center[1] + u * ax[1] + v * ay[1],
-        Center[2] + u * ax[2] + v * ay[2]);
+        this->Center[0] + u * ax[0] + v * ay[0],
+        this->Center[1] + u * ax[1] + v * ay[1],
+        this->Center[2] + u * ax[2] + v * ay[2]);
     }
 
-    if (GeneratePolygon)
+    if (this->GeneratePolygon)
     {
       polys->InsertNextCell(nPts);
       for (int pi = 0; pi < nPts; ++pi)
@@ -385,7 +385,7 @@ int vtkEyeBallSource::RequestData(
       }
     }
 
-    if (GeneratePolyline)
+    if (this->GeneratePolyline)
     {
       lines->InsertNextCell(nPts + 1);
       for (int pi = 0; pi < nPts; ++pi)
@@ -398,12 +398,12 @@ int vtkEyeBallSource::RequestData(
     offset += nPts;
   }
 
-  if (GeneratePolygon)
+  if (this->GeneratePolygon)
   {
     vtkNew<vtkPolyData> tempPd;
     tempPd->SetPoints(pts);
     tempPd->SetPolys(polys);
-    if (GeneratePolyline)
+    if (this->GeneratePolyline)
     {
       tempPd->SetLines(lines);
     }
@@ -419,7 +419,7 @@ int vtkEyeBallSource::RequestData(
   else
   {
     output->SetPoints(pts);
-    if (GeneratePolyline)
+    if (this->GeneratePolyline)
     {
       output->SetLines(lines);
     }
