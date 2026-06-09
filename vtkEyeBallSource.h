@@ -26,7 +26,7 @@ public:
   vtkSetVector3Macro(Direction, double);
   vtkGetVector3Macro(Direction, double);
 
-  vtkSetClampMacro(Scale, double, 1e-9, VTK_DOUBLE_MAX);
+  vtkSetClampMacro(Scale, double, 1e-12, VTK_DOUBLE_MAX);
   vtkGetMacro(Scale, double);
 
   vtkSetMacro(GeneratePolyline, bool);
