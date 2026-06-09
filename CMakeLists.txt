@@ -47,6 +47,11 @@ add_library(vtkEyeBallSource STATIC
   vtkEyeBallSource.cxx
 )
 
+add_library(vtkEyePupilSource STATIC
+  vtkEyePupilSource.h
+  vtkEyePupilSource.cxx
+)
+
 add_library(vtkOutlinedTextActor STATIC
   vtkOutlinedTextActor.h
   vtkOutlinedTextActor.cxx
@@ -102,6 +107,14 @@ target_link_libraries(vtkEyeBallSource
   PUBLIC ${VTK_LIBRARIES}
 )
 
+target_include_directories(vtkEyePupilSource
+  PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(vtkEyePupilSource
+  PUBLIC ${VTK_LIBRARIES}
+)
+
 vtk_module_autoinit(
   TARGETS vtkEyeShapeSource
   MODULES ${VTK_LIBRARIES}
@@ -109,6 +122,11 @@ vtk_module_autoinit(
 
 vtk_module_autoinit(
   TARGETS vtkEyeBallSource
+  MODULES ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS vtkEyePupilSource
   MODULES ${VTK_LIBRARIES}
 )
 
