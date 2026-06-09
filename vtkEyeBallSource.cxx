@@ -333,11 +333,16 @@ int vtkEyeBallSource::RequestData(
   double len = vtkMath::Normalize(nrm);
   if (len < 1e-15)
   {
-    vtkErrorMacro("Normal vector has zero length.");
+    vtkErrorMacro("Normal vector must be non-zero and have non-negligible length.");
     return 0;
   }
 
   double d[3] = { this->Direction[0], this->Direction[1], this->Direction[2] };
+  if (vtkMath::Norm(d) < 1e-15)
+  {
+    vtkErrorMacro("Direction vector must be non-zero.");
+    return 0;
+  }
   const double dot = vtkMath::Dot(d, nrm);
   d[0] -= dot * nrm[0];
   d[1] -= dot * nrm[1];
@@ -345,7 +350,7 @@ int vtkEyeBallSource::RequestData(
   len = vtkMath::Normalize(d);
   if (len < 1e-15)
   {
-    vtkErrorMacro("Direction vector is parallel to Normal or has zero length.");
+    vtkErrorMacro("Direction vector must not be parallel to Normal.");
     return 0;
   }
   const double ay[3] = { d[0], d[1], d[2] };
