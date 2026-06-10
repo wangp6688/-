@@ -342,7 +342,7 @@ void vtkEyeBallSource::SetGeneratePolyline(bool generatePolyline)
 
 int vtkEyeBallSource::FillOutputPortInformation(int port, vtkInformation* info)
 {
-  if (port == 0 || (port == 1 && this->GeneratePolyline))
+  if (port < this->GetNumberOfOutputPorts())
   {
     info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
     return 1;
@@ -356,7 +356,8 @@ int vtkEyeBallSource::RequestData(
   vtkInformationVector* outputVector)
 {
   vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
-  vtkPolyData* contourOutput = this->GeneratePolyline ? vtkPolyData::GetData(outputVector, 1) : nullptr;
+  vtkPolyData* contourOutput =
+    (this->GetNumberOfOutputPorts() > 1) ? vtkPolyData::GetData(outputVector, 1) : nullptr;
 
   double nrm[3] = { this->Normal[0], this->Normal[1], this->Normal[2] };
   double len = vtkMath::Normalize(nrm);
