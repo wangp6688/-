@@ -449,6 +449,8 @@ int vtkEyeBallSource::RequestData(
     output->SetPoints(pts);
   }
 
+  // Port 0 is reserved for the polygon output only; any triangulator-passed
+  // contour lines are stripped so callers never see mixed geometry there.
   output->SetLines(nullptr);
 
   if (contourOutput)

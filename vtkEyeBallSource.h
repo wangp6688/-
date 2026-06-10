@@ -12,6 +12,9 @@
  *
  * Port 0 always outputs the filled polygon. When GeneratePolyline is enabled,
  * port 1 additionally outputs all closed contour polylines.
+ *
+ * GeneratePolyline defaults to off so existing single-output behavior stays
+ * unchanged unless the caller explicitly opts into the extra contour port.
  */
 class vtkEyeBallSource : public vtkPolyDataAlgorithm
 {
