@@ -9,6 +9,12 @@
  *
  * The shape geometry is derived from EyePupil.svg and baked in as static
  * arrays at compile time — no SVG parsing occurs at runtime.
+ *
+ * Port 0 always outputs the filled polygon. When GeneratePolyline is enabled,
+ * port 1 additionally outputs the closed contour polyline.
+ *
+ * GeneratePolyline defaults to off so the source keeps its historical single
+ * output unless the caller explicitly opts in.
  */
 class vtkEyePupilSource : public vtkPolyDataAlgorithm
 {
@@ -38,7 +44,7 @@ public:
   ///@}
 
   ///@{
-  vtkSetMacro(GeneratePolyline, bool);
+  void SetGeneratePolyline(bool generatePolyline);
   vtkGetMacro(GeneratePolyline, bool);
   vtkBooleanMacro(GeneratePolyline, bool);
   ///@}
@@ -54,6 +60,7 @@ protected:
   ~vtkEyePupilSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
 private:
   vtkEyePupilSource(const vtkEyePupilSource&) = delete;
