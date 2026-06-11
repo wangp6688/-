@@ -7,8 +7,16 @@
  * @class vtkCameraRotateAxisSource
  * @brief Generates the rotate-axis SVG shape as a vtkPolyData.
  *
- * The shape geometry is derived from rotate_axis.svg and baked in as static
+ * The shape geometry is derived from rotate_axis.svg.svg and baked in as static
  * arrays at compile time — no SVG parsing occurs at runtime.
+ *
+ * Port 0 always outputs the filled polygon. When GeneratePolyline is enabled,
+ * port 1 additionally outputs the closed contour polylines.
+ *
+ * GeneratePolyline defaults to off so the source keeps its historical single
+ * output unless the caller explicitly opts in.
+ * If both GeneratePolygon and GeneratePolyline are off, port 0 contains only
+ * the transformed points.
  *
  * The 2-D outline is placed in 3-D space using three user-settable parameters:
  *   - Center    – origin of the shape in world space.
@@ -20,7 +28,7 @@
  * An optional Scale factor uniformly scales the shape around Center.
  *
  * Two output modes are independently controllable:
- *   - GeneratePolyline (default: on)  – closed outline polylines.
+ *   - GeneratePolyline (default: off) – closed outline polylines.
  *   - GeneratePolygon  (default: on)  – filled polygon cells.
  *
  * Typical usage:
@@ -69,8 +77,7 @@ public:
   ///@}
 
   ///@{
-  /** Enable / disable closed polyline output (outline). Default: on. */
-  vtkSetMacro(GeneratePolyline, bool);
+  void SetGeneratePolyline(bool generatePolyline);
   vtkGetMacro(GeneratePolyline, bool);
   vtkBooleanMacro(GeneratePolyline, bool);
   ///@}
@@ -87,6 +94,7 @@ protected:
   ~vtkCameraRotateAxisSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
 private:
   vtkCameraRotateAxisSource(const vtkCameraRotateAxisSource&) = delete;

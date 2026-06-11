@@ -1,6 +1,7 @@
 #include "vtkEyePupilSource.h"
 
 #include <vtkCellArray.h>
+#include <vtkDataObject.h>
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
 #include <vtkMath.h>
@@ -289,9 +290,10 @@ vtkEyePupilSource::vtkEyePupilSource()
   this->Direction[1] = 1.0;
   this->Direction[2] = 0.0;
   this->Scale = 1.0;
-  this->GeneratePolyline = true;
+  this->GeneratePolyline = false;
   this->GeneratePolygon = true;
   this->SetNumberOfInputPorts(0);
+  this->SetNumberOfOutputPorts(1);
 }
 
 void vtkEyePupilSource::PrintSelf(ostream& os, vtkIndent indent)
@@ -305,12 +307,34 @@ void vtkEyePupilSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GeneratePolygon: " << (GeneratePolygon ? "on" : "off") << "\n";
 }
 
+void vtkEyePupilSource::SetGeneratePolyline(bool generatePolyline)
+{
+  if (this->GeneratePolyline != generatePolyline)
+  {
+    this->GeneratePolyline = generatePolyline;
+    this->SetNumberOfOutputPorts(generatePolyline ? 2 : 1);
+    this->Modified();
+  }
+}
+
+int vtkEyePupilSource::FillOutputPortInformation(int port, vtkInformation* info)
+{
+  if (port < this->GetNumberOfOutputPorts())
+  {
+    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
+    return 1;
+  }
+  return 0;
+}
+
 int vtkEyePupilSource::RequestData(
   vtkInformation*,
   vtkInformationVector**,
   vtkInformationVector* outputVector)
 {
   vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
+  vtkPolyData* contourOutput =
+    (this->GetNumberOfOutputPorts() > 1) ? vtkPolyData::GetData(outputVector, 1) : nullptr;
 
   double nrm[3] = { Normal[0], Normal[1], Normal[2] };
   double len = vtkMath::Normalize(nrm);
@@ -378,10 +402,6 @@ int vtkEyePupilSource::RequestData(
     vtkNew<vtkPolyData> tempPd;
     tempPd->SetPoints(pts);
     tempPd->SetPolys(polys);
-    if (GeneratePolyline)
-    {
-      tempPd->SetLines(lines);
-    }
 
     vtkNew<vtkTriangleFilter> triFilter;
     triFilter->SetInputData(tempPd);
@@ -394,10 +414,17 @@ int vtkEyePupilSource::RequestData(
   else
   {
     output->SetPoints(pts);
-    if (GeneratePolyline)
-    {
-      output->SetLines(lines);
-    }
+  }
+
+  // Port 0 only carries polygon geometry; clear any contour lines so port 1
+  // remains the only place where outline geometry appears.
+  vtkNew<vtkCellArray> emptyLines;
+  output->SetLines(emptyLines);
+
+  if (contourOutput)
+  {
+    contourOutput->SetPoints(pts);
+    contourOutput->SetLines(lines);
   }
 
   return 1;

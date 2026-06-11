@@ -1,7 +1,7 @@
 /**
  * vtkCameraRotateAxisSource.cxx
  *
- * Geometry baked from rotate_axis.svg (viewBox="0 0 323 16").
+ * Geometry baked from rotate_axis.svg.svg (viewBox="0 0 323 16").
  * The 2 SVG sub-paths were tessellated into 138 sample points
  * (cubic Bezier curves subdivided into 32 segments each).
  * Coordinates are centred at (0, 0) and normalised by max(width, height) = 323
@@ -14,6 +14,7 @@
 #include "vtkCameraRotateAxisSource.h"
 
 #include <vtkCellArray.h>
+#include <vtkDataObject.h>
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
 #include <vtkMath.h>
@@ -186,9 +187,10 @@ vtkCameraRotateAxisSource::vtkCameraRotateAxisSource()
   this->Normal[0] = 0.0; this->Normal[1] = 0.0; this->Normal[2] = 1.0;
   this->Direction[0] = 0.0; this->Direction[1] = 1.0; this->Direction[2] = 0.0;
   this->Scale          = 1.0;
-  this->GeneratePolyline = true;
+  this->GeneratePolyline = false;
   this->GeneratePolygon  = true;
   this->SetNumberOfInputPorts(0);
+  this->SetNumberOfOutputPorts(1);
 }
 
 void vtkCameraRotateAxisSource::PrintSelf(ostream& os, vtkIndent indent)
@@ -202,12 +204,34 @@ void vtkCameraRotateAxisSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GeneratePolygon: "  << (GeneratePolygon  ? "on" : "off") << "\n";
 }
 
+void vtkCameraRotateAxisSource::SetGeneratePolyline(bool generatePolyline)
+{
+  if (this->GeneratePolyline != generatePolyline)
+  {
+    this->GeneratePolyline = generatePolyline;
+    this->SetNumberOfOutputPorts(generatePolyline ? 2 : 1);
+    this->Modified();
+  }
+}
+
+int vtkCameraRotateAxisSource::FillOutputPortInformation(int port, vtkInformation* info)
+{
+  if (port < this->GetNumberOfOutputPorts())
+  {
+    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
+    return 1;
+  }
+  return 0;
+}
+
 int vtkCameraRotateAxisSource::RequestData(
   vtkInformation*,
   vtkInformationVector**,
   vtkInformationVector* outputVector)
 {
   vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
+  vtkPolyData* contourOutput =
+    (this->GetNumberOfOutputPorts() > 1) ? vtkPolyData::GetData(outputVector, 1) : nullptr;
 
   // ── Build a local orthonormal frame ──────────────────────────────────────
   // nrm = normalised Normal
@@ -296,8 +320,6 @@ int vtkCameraRotateAxisSource::RequestData(
     vtkNew<vtkPolyData> tempPd;
     tempPd->SetPoints(pts);
     tempPd->SetPolys(polys);
-    if (GeneratePolyline)
-      tempPd->SetLines(lines);
 
     vtkNew<vtkTriangleFilter> triFilter;
     triFilter->SetInputData(tempPd);
@@ -310,8 +332,15 @@ int vtkCameraRotateAxisSource::RequestData(
   else
   {
     output->SetPoints(pts);
-    if (GeneratePolyline)
-      output->SetLines(lines);
+  }
+
+  vtkNew<vtkCellArray> emptyLines;
+  output->SetLines(emptyLines);
+
+  if (contourOutput)
+  {
+    contourOutput->SetPoints(pts);
+    contourOutput->SetLines(lines);
   }
 
   return 1;

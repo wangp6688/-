@@ -3,10 +3,10 @@
  *
  * Demonstrates vtkCameraRotateAxisSource.
  *
- * The source generates the rotate-axis shape (from rotate_axis.svg) as a
+ * The source generates the rotate-axis shape (from rotate_axis.svg.svg) as a
  * vtkPolyData placed in 3-D space.  Center, Normal, Direction, and Scale are
- * all settable; the geometry itself is baked in at compile time with no
- * runtime SVG parsing.
+ * all settable; GeneratePolyline enables a second contour output; the geometry
+ * itself is baked in at compile time with no runtime SVG parsing.
  *
  * Build with the provided CMakeLists.txt, then run:
  *   ./Example_RotateAxis

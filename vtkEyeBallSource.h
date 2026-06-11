@@ -9,6 +9,14 @@
  *
  * Geometry is baked from EyeBall.svg at code-generation time.
  * No runtime SVG parsing is performed.
+ *
+ * Port 0 always outputs the filled polygon. When GeneratePolyline is enabled,
+ * port 1 additionally outputs all closed contour polylines.
+ *
+ * GeneratePolyline defaults to off so existing single-output behavior stays
+ * unchanged unless the caller explicitly opts into the extra contour port.
+ * If both GeneratePolygon and GeneratePolyline are off, port 0 contains only
+ * the transformed points.
  */
 class vtkEyeBallSource : public vtkPolyDataAlgorithm
 {
@@ -29,7 +37,7 @@ public:
   vtkSetClampMacro(Scale, double, 1e-12, VTK_DOUBLE_MAX);
   vtkGetMacro(Scale, double);
 
-  vtkSetMacro(GeneratePolyline, bool);
+  void SetGeneratePolyline(bool generatePolyline);
   vtkGetMacro(GeneratePolyline, bool);
   vtkBooleanMacro(GeneratePolyline, bool);
 
@@ -42,6 +50,7 @@ protected:
   ~vtkEyeBallSource() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
 private:
   vtkEyeBallSource(const vtkEyeBallSource&) = delete;

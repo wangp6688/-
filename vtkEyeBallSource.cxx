@@ -12,6 +12,7 @@
 
 #include <vtkCellArray.h>
 #include <vtkContourTriangulator.h>
+#include <vtkDataObject.h>
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
 #include <vtkMath.h>
@@ -311,9 +312,10 @@ vtkEyeBallSource::vtkEyeBallSource()
   this->Direction[1] = 1.0;
   this->Direction[2] = 0.0;
   this->Scale = 1.0;
-  this->GeneratePolyline = true;
+  this->GeneratePolyline = false;
   this->GeneratePolygon = true;
   this->SetNumberOfInputPorts(0);
+  this->SetNumberOfOutputPorts(1);
 }
 
 void vtkEyeBallSource::PrintSelf(ostream& os, vtkIndent indent)
@@ -323,8 +325,29 @@ void vtkEyeBallSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Normal: (" << this->Normal[0] << ", " << this->Normal[1] << ", " << this->Normal[2] << ")\n";
   os << indent << "Direction: (" << this->Direction[0] << ", " << this->Direction[1] << ", " << this->Direction[2] << ")\n";
   os << indent << "Scale: " << this->Scale << "\n";
-  os << indent << "GeneratePolyline: " << (this->GeneratePolyline ? "on" : "off") << "\n";
+  os << indent << "GeneratePolyline: " << (this->GeneratePolyline ? "on" : "off")
+     << " (secondary contour output)\n";
   os << indent << "GeneratePolygon: " << (this->GeneratePolygon ? "on" : "off") << "\n";
+}
+
+void vtkEyeBallSource::SetGeneratePolyline(bool generatePolyline)
+{
+  if (this->GeneratePolyline != generatePolyline)
+  {
+    this->GeneratePolyline = generatePolyline;
+    this->SetNumberOfOutputPorts(generatePolyline ? 2 : 1);
+    this->Modified();
+  }
+}
+
+int vtkEyeBallSource::FillOutputPortInformation(int port, vtkInformation* info)
+{
+  if (port < this->GetNumberOfOutputPorts())
+  {
+    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
+    return 1;
+  }
+  return 0;
 }
 
 int vtkEyeBallSource::RequestData(
@@ -333,6 +356,8 @@ int vtkEyeBallSource::RequestData(
   vtkInformationVector* outputVector)
 {
   vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
+  vtkPolyData* contourOutput =
+    (this->GetNumberOfOutputPorts() > 1) ? vtkPolyData::GetData(outputVector, 1) : nullptr;
 
   double nrm[3] = { this->Normal[0], this->Normal[1], this->Normal[2] };
   double len = vtkMath::Normalize(nrm);
@@ -418,21 +443,21 @@ int vtkEyeBallSource::RequestData(
     triangulator->Update();
 
     output->ShallowCopy(triangulator->GetOutput());
-
-    if (!this->GeneratePolyline)
-    {
-      // vtkContourTriangulator passes input lines through; strip them when the
-      // caller has not requested outline geometry.
-      output->SetLines(nullptr);
-    }
   }
   else
   {
     output->SetPoints(pts);
-    if (this->GeneratePolyline)
-    {
-      output->SetLines(lines);
-    }
+  }
+
+  // Port 0 is reserved for the polygon output only; clear any contour lines so
+  // callers never see mixed geometry there.
+  vtkNew<vtkCellArray> emptyLines;
+  output->SetLines(emptyLines);
+
+  if (contourOutput)
+  {
+    contourOutput->SetPoints(pts);
+    contourOutput->SetLines(lines);
   }
 
   return 1;

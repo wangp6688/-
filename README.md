@@ -53,8 +53,11 @@ Two output modes can be toggled independently:
 
 | Mode              | Default | Description |
 |-------------------|---------|-------------|
-| `GeneratePolyline`| on      | Closed polyline cells (outline). |
+| `GeneratePolyline`| off     | Closed polyline cells (outline, on port 1). |
 | `GeneratePolygon` | on      | Filled polygon cells. |
+
+When `GeneratePolyline` is enabled, port 1 additionally exposes the closed
+contour polylines; port 0 always carries the filled polygon output.
 
 ### Quick-start
 
@@ -100,7 +103,7 @@ A Python script (`/tmp/gen_vtk_source.py`) parsed `rotate_handle.svg` offline:
 ## vtkCameraRotateAxisSource
 
 A `vtkPolyDataAlgorithm` that generates the rotate-axis shape (from
-`rotate_axis.svg`) as a `vtkPolyData` — with **no runtime SVG parsing**.
+`rotate_axis.svg.svg`) as a `vtkPolyData` — with **no runtime SVG parsing**.
 
 The 2 SVG sub-paths were tessellated into 138 2-D sample points at
 code-generation time (cubic Bézier curves subdivided into 32 segments).
@@ -152,7 +155,7 @@ make
 
 ### How the geometry was generated
 
-A Python script parsed `rotate_axis.svg` offline:
+A Python script parsed `rotate_axis.svg.svg` offline:
 
 1. The SVG `<path d="...">` was tokenised into M / L / C / Z commands.
 2. The path contained 2 sub-paths (separated by the second `M` command).
@@ -264,4 +267,3 @@ Throws `std::invalid_argument` if the curve has fewer than 2 points or if
 - Degenerate cases (zero-length edges, anti-parallel consecutive tangents) are
   handled gracefully.
 - Requires VTK (`vtkMath`, `vtkVector`). Header-only, C++14.
-
