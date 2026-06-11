@@ -1,7 +1,7 @@
 /**
  * vtkCameraRotateAxisSource.cxx
  *
- * Geometry baked from rotate_axis.svg (viewBox="0 0 323 16").
+ * Geometry baked from rotate_axis.svg.svg (viewBox="0 0 323 16").
  * The 2 SVG sub-paths were tessellated into 138 sample points
  * (cubic Bezier curves subdivided into 32 segments each).
  * Coordinates are centred at (0, 0) and normalised by max(width, height) = 323

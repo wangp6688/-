@@ -7,7 +7,7 @@
  * @class vtkCameraRotateAxisSource
  * @brief Generates the rotate-axis SVG shape as a vtkPolyData.
  *
- * The shape geometry is derived from rotate_axis.svg and baked in as static
+ * The shape geometry is derived from rotate_axis.svg.svg and baked in as static
  * arrays at compile time — no SVG parsing occurs at runtime.
  *
  * The 2-D outline is placed in 3-D space using three user-settable parameters:
