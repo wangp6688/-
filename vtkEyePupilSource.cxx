@@ -416,8 +416,10 @@ int vtkEyePupilSource::RequestData(
     output->SetPoints(pts);
   }
 
-  // Port 0 only carries polygon geometry; contour lines are reserved for port 1.
-  output->SetLines(nullptr);
+  // Port 0 only carries polygon geometry; clear any contour lines so port 1
+  // remains the only place where outline geometry appears.
+  vtkNew<vtkCellArray> emptyLines;
+  output->SetLines(emptyLines);
 
   if (contourOutput)
   {
