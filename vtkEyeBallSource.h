@@ -15,6 +15,8 @@
  *
  * GeneratePolyline defaults to off so existing single-output behavior stays
  * unchanged unless the caller explicitly opts into the extra contour port.
+ * If both GeneratePolygon and GeneratePolyline are off, port 0 contains only
+ * the transformed points.
  */
 class vtkEyeBallSource : public vtkPolyDataAlgorithm
 {

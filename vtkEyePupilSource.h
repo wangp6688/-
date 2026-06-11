@@ -15,6 +15,8 @@
  *
  * GeneratePolyline defaults to off so the source keeps its historical single
  * output unless the caller explicitly opts in.
+ * If both GeneratePolygon and GeneratePolyline are off, port 0 contains only
+ * the transformed points.
  */
 class vtkEyePupilSource : public vtkPolyDataAlgorithm
 {
