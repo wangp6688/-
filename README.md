@@ -53,8 +53,11 @@ Two output modes can be toggled independently:
 
 | Mode              | Default | Description |
 |-------------------|---------|-------------|
-| `GeneratePolyline`| on      | Closed polyline cells (outline). |
+| `GeneratePolyline`| off     | Closed polyline cells (outline, on port 1). |
 | `GeneratePolygon` | on      | Filled polygon cells. |
+
+When `GeneratePolyline` is enabled, port 1 additionally exposes the closed
+contour polylines; port 0 always carries the filled polygon output.
 
 ### Quick-start
 
