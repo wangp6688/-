@@ -267,3 +267,19 @@ Throws `std::invalid_argument` if the curve has fewer than 2 points or if
 - Degenerate cases (zero-length edges, anti-parallel consecutive tangents) are
   handled gracefully.
 - Requires VTK (`vtkMath`, `vtkVector`). Header-only, C++14.
+
+---
+
+## vtkTrajectoryRoundCapSource
+
+`vtkTrajectoryRoundCapSource` 是一个 `vtkPolyDataAlgorithm`，用于根据轨迹点集生成带圆头端点的轨迹面片：
+
+- 输入：轨迹点（内部维护，可实时 `AddPoint`）、平面法向量 `Normal`、半径 `Radius`
+- 输出：`vtkPolyData`（三角形面），轨迹两端为半圆圆头，宽度为 `2 * Radius`
+
+常用接口：
+
+- `AddPoint(x, y, z)`：实时追加轨迹点
+- `ClearPoints()`：清空轨迹
+- `SetPoints(vtkPoints*)`：批量设置轨迹点
+- `SetNormal(...)` / `SetRadius(...)` / `SetCapResolution(...)`
