@@ -57,6 +57,11 @@ add_library(vtkOutlinedTextActor STATIC
   vtkOutlinedTextActor.cxx
 )
 
+add_library(vtkTrajectoryRoundCapSource STATIC
+  vtkTrajectoryRoundCapSource.h
+  vtkTrajectoryRoundCapSource.cxx
+)
+
 target_include_directories(vtkImageLabelContourExtractor
   PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -138,6 +143,14 @@ target_link_libraries(vtkOutlinedTextActor
   PUBLIC ${VTK_LIBRARIES}
 )
 
+target_include_directories(vtkTrajectoryRoundCapSource
+  PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(vtkTrajectoryRoundCapSource
+  PUBLIC ${VTK_LIBRARIES}
+)
+
 vtk_module_autoinit(
   TARGETS vtkCameraRotateAxisSource
   MODULES ${VTK_LIBRARIES}
@@ -145,6 +158,11 @@ vtk_module_autoinit(
 
 vtk_module_autoinit(
   TARGETS vtkOutlinedTextActor
+  MODULES ${VTK_LIBRARIES}
+)
+
+vtk_module_autoinit(
+  TARGETS vtkTrajectoryRoundCapSource
   MODULES ${VTK_LIBRARIES}
 )
 
